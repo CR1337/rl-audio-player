@@ -1,3 +1,5 @@
+[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://github.com/CR1337/rl-audio-player/blob/main/LICENSE)
+
 # rl-audio-player
 
 A simple library that provides audio playback capailities.
