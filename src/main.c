@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
         .timeResolution = 10
     };
 
-    AudioObject *audio = audioInit(&configuration);
+    AudioObject audio = audioInit(&configuration);
     if (audio == NULL) {
         fprintf(stderr, "Failed to initialize audio\n");
         free(rawData);
