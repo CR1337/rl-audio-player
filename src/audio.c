@@ -85,6 +85,12 @@ typedef struct {
     uint8_t __align[3];
 } _AudioObject;
 
+void _resetError(_AudioObject *_self) {
+    ((_AudioObject*)_self)->error->type = AUDIO_ERROR_NO_ERROR;
+    ((_AudioObject*)_self)->error->level = AUDIO_ERROR_LEVEL_INFO;
+    ((_AudioObject*)_self)->error->alsaErrorNumber = 0;
+}
+
 void _waitForBarriers(_AudioObject *_self) {
     if (_self->externalBarrier != NULL) {
         pthread_barrier_wait(_self->externalBarrier);
@@ -589,6 +595,7 @@ void _unlockAction(_AudioObject *_self) {
 
 bool audioPlay(AudioObject *self, pthread_barrier_t *barrier) {
     _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
     if (!_lockAction(
         _self, barrier, 
         !_self->isPlaying
@@ -606,6 +613,7 @@ bool audioPlay(AudioObject *self, pthread_barrier_t *barrier) {
 
 bool audioPause(AudioObject *self, pthread_barrier_t *barrier) {
     _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
     if (!_lockAction(
         _self, barrier, 
         _self->isPlaying
@@ -623,6 +631,7 @@ bool audioPause(AudioObject *self, pthread_barrier_t *barrier) {
 
 void audioStop(AudioObject *self, pthread_barrier_t *barrier) {
     _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
     _lockAction(_self, barrier, true);
 
     _self->stopFlag = true;
@@ -634,6 +643,7 @@ void audioJump(
     AudioObject *self, pthread_barrier_t *barrier, uint32_t milliseconds
 ) {
     _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
     _lockAction(_self, barrier, true);
 
     _self->jumpFlag = true;
@@ -647,25 +657,35 @@ void audioJump(
 }
 
 bool audioGetIsPlaying(AudioObject *self) { 
-    return ((_AudioObject*)self)->isPlaying; 
+    _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
+    return _self->isPlaying; 
 }
 
 bool audioGetIsPaused(AudioObject *self) { 
-    return ((_AudioObject*)self)->isPaused; 
+    _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
+    return _self->isPaused; 
 }
 
 uint32_t audioGetCurrentTime(AudioObject *self) {
-    return ((_AudioObject*)self)->currentFrame 
+    _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
+    return _self->currentFrame 
         * MILLISECONDS_PER_SECOND
-        / ((_AudioObject*)self)->riffData.byteRate;
+        / _self->riffData.byteRate;
 }
 
 uint32_t audioGetTotalDuration(AudioObject *self) { 
-    return ((_AudioObject*)self)->riffData.audioLength; 
+    _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
+    return _self->riffData.audioLength; 
 }
 
 AudioError * audioGetError(AudioObject *self) {
-    return ((_AudioObject*)self)->error;
+    _AudioObject *_self = (_AudioObject*)self;
+    _resetError(_self);
+    return _self->error;
 }
 
 const char * audioGetErrorString(AudioError *error) {
@@ -736,10 +756,4 @@ const char * audioGetErrorString(AudioError *error) {
         default:
             return "Unknown error";
     }
-}
-
-void audioResetError(AudioObject *self) {
-    ((_AudioObject*)self)->error->type = AUDIO_ERROR_NO_ERROR;
-    ((_AudioObject*)self)->error->level = AUDIO_ERROR_LEVEL_INFO;
-    ((_AudioObject*)self)->error->alsaErrorNumber = 0;
 }

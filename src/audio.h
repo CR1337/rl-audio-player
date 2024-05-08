@@ -192,11 +192,5 @@ AudioError * audioGetError(AudioObject *self);
  * @param error The error.
 */
 const char * audioGetErrorString(AudioError *error);
-/**
- * Resets the error.
- * 
- * @param self The audio object.
-*/
-void audioResetError(AudioObject *self);
 
 #endif // __AUDIO_H__
