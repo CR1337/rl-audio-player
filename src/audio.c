@@ -92,11 +92,11 @@ void _resetError(_AudioObject *_self) {
 }
 
 void _waitForBarriers(_AudioObject *_self) {
+    pthread_barrier_wait(_self->internalBarrier);
     if (_self->externalBarrier != NULL) {
         pthread_barrier_wait(_self->externalBarrier);
         _self->externalBarrier = NULL;
     }
-    pthread_barrier_wait(_self->internalBarrier);
 }
 
 void _play(_AudioObject *_self) {
