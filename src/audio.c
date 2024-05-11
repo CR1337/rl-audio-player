@@ -11,26 +11,36 @@ typedef uint8_t Bool8;
 #define WAVE_MAGIC (uint8_t[4]){'W', 'A', 'V', 'E'}
 #define FMT_MAGIC  (uint8_t[4]){'f', 'm', 't', ' '}
 #define DATA_MAGIC (uint8_t[4]){'d', 'a', 't', 'a'}
+#define MAGIC_SIZE (4)
 #define FMT_CHUNK_SIZE (16)
 
 #define PCM_FORMAT (1)
 #define PCM_BLOCK_MODE (0)
 #define PCM_SEARCH_DIRECTION_NEAR (0)
 
+#define DEFAULT_SOUND_DEVICE_NAME ("default")
+
 #define MICROSECONDS_PER_MILLISECOND (1000)
 #define MILLISECONDS_PER_SECOND (1000)
 #define BITS_PER_BYTE (8)
-#define MAGIC_SIZE (4)
 
 #define BUFFER_SIZE_FACTOR (8)
 #define INTERNAL_BARRIER_COUNT (2)
 
+// The following 3 structs defined the structure of a WAV file.
+
+/**
+ * @brief The RIFF header of a WAV file
+*/
 typedef struct __attribute__((packed)) {
     uint8_t riffMagic[4];
     uint32_t fileSize;
     uint8_t waveMagic[4];
 } AudioRiffHeader;
 
+/**
+ * @brief The Fmt Chunk of a WAV file
+*/
 typedef struct __attribute__((packed)) {
     uint8_t fmtMagic[4];
     uint32_t fmtSize;
@@ -42,20 +52,28 @@ typedef struct __attribute__((packed)) {
     uint16_t bitsPerSample;
 } AudioFmtChunk;
 
+/**
+ * @brief The DATA chunk of a WAV file
+ * 
+ * This is followed by the audio data.
+*/
 typedef struct __attribute__((packed)) {
     uint8_t dataMagic[4];
     uint32_t dataSize;
 } AudioDataChunk;
 
+/**
+ * @brief This represents the data necessary to play the audio.
+*/
 typedef struct {
-    uint32_t sampleRate;
-    uint32_t byteRate;
-    uint32_t dataSize;
-    uint32_t audioLength;  // in milliseconds
-    uint16_t channelAmount;
-    uint16_t blockAlign;
-    uint16_t bitsPerSample;
-    uint8_t *data;
+    uint32_t sampleRate;  /* The sample rate in frames/second */
+    uint32_t byteRate;  /* How many bytes are "played" per second */
+    uint32_t dataSize;  /* The amount of audio data in bytes */
+    uint32_t audioLength;  /* The length of the audio in milliseconds */
+    uint16_t channelAmount;  /* The amount of channels, 1 is mono, 2 is stereo */
+    uint16_t blockAlign;  // TODO
+    uint16_t bitsPerSample;  /* The amount of bits per sample */
+    uint8_t *data;  /* A pointer to the audio data */
     uint8_t __align;
 } AudioRiffData;
 
@@ -73,7 +91,7 @@ typedef struct {
     uint32_t timeResolution; 
     uint32_t alsaBufferSize;
     uint32_t jumpTarget;  // in milliseconds
-    Bool8 soundDeviceNameSet;
+    Bool8 soundDeviceNameSetByUser;
     Bool8 useExternalBarrier;
     Bool8 isPlaying;
     Bool8 isPaused;
@@ -109,8 +127,12 @@ void _pause(_AudioObject *_self) {
     _self->pauseFlag = false;
     _self->isPlaying = false;
     _self->isPaused = true;
-    snd_pcm_sframes_t delay;
+    
+    // How much not played frames are in the buffer?
+    snd_pcm_sframes_t delay; 
     snd_pcm_delay(_self->pcmHandle, &delay);
+
+    // Remove them from the buffer
     _self->currentFrame -= delay;
     if (_self->currentFrame < 0) _self->currentFrame = 0;
     snd_pcm_drop(_self->pcmHandle);
@@ -121,6 +143,8 @@ void _stop(_AudioObject *_self) {
     _self->stopFlag = false;
     _self->isPlaying = false;
     _self->isPaused = true;
+
+    // Clear buffer
     _self->currentFrame = 0;
     snd_pcm_drop(_self->pcmHandle);
     snd_pcm_prepare(_self->pcmHandle);
@@ -128,17 +152,22 @@ void _stop(_AudioObject *_self) {
 
 void _jump(_AudioObject *_self) {
     _self->jumpFlag = false;
+
+    // Calculate new current frame and check for overrun
     _self->currentFrame = _self->jumpTarget 
         * _self->riffData.byteRate 
         / MICROSECONDS_PER_MILLISECOND;
     if (_self->currentFrame > _self->lastFrame) {
         _self->currentFrame = _self->lastFrame;
     }
+
+    // Clear buffer
     snd_pcm_drop(_self->pcmHandle);
     snd_pcm_prepare(_self->pcmHandle);
 }
 
 snd_pcm_uframes_t _getFramesAvailable(_AudioObject *_self) {
+    // Get the amount of frames that can be written to the buffer
     snd_pcm_status_t *status;
     snd_pcm_status_malloc(&status);
     snd_pcm_status(_self->pcmHandle, status);
@@ -150,6 +179,8 @@ snd_pcm_uframes_t _getFramesAvailable(_AudioObject *_self) {
 snd_pcm_uframes_t _getFramesToWrite(
     _AudioObject *_self, snd_pcm_uframes_t framesAvailable, bool *endReached
 ) {
+    // Compute the actual amount of frames to be written considering 
+    // possible overrun.
     snd_pcm_uframes_t framesToWrite = framesAvailable;
     *endReached = false;
     if (_self->currentFrame + framesToWrite > _self->lastFrame) {
@@ -164,6 +195,7 @@ void * _mainloop(void *self) {
     _self->isPaused = true;
 
     while (!_self->haltFlag) {
+        // Handle set command flags.
         if (_self->playFlag) {
             _play(_self);
             _waitForBarriers(_self);
@@ -178,20 +210,27 @@ void * _mainloop(void *self) {
             _waitForBarriers(_self);
         }
 
+        // Wait a bit and if paused don't do anything.
         usleep(_self->timeResolution * MICROSECONDS_PER_MILLISECOND);
         if (_self->isPaused) continue;
 
+        // Determine how many frames could be written.
         snd_pcm_uframes_t framesAvailable = _getFramesAvailable(_self);
 
+        // If buffer is half empty write frames
         if (framesAvailable > HALF(_self->alsaBufferSize)) {
+            // Determine the amount of frames to write and check if
+            // the end is reached afterwards.
             bool endReached = false;
             snd_pcm_uframes_t framesToWrite = _getFramesToWrite(
                 _self, framesAvailable, &endReached
             );
 
+            // Calculate the offset in the pcm data.
             size_t pcm_offset = _self->currentFrame 
                 * _self->riffData.blockAlign;
 
+            // Write the frames
             if (snd_pcm_writei(
                 _self->pcmHandle, 
                 (void*)(_self->riffData.data + pcm_offset), 
@@ -200,6 +239,7 @@ void * _mainloop(void *self) {
                 snd_pcm_prepare(_self->pcmHandle);
             }
 
+            // Stop if end is reached.
             if (endReached) {
                 _stop(_self);
             } else {
@@ -213,6 +253,9 @@ void * _mainloop(void *self) {
 }
 
 bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
+    // Read entire WAV file and check if all invariants hold true.
+
+    // Check if there is even enough space for the headers
     if (
         rawDataSize < sizeof(AudioRiffHeader) 
         + sizeof(AudioFmtChunk) 
@@ -322,12 +365,14 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
     }
+    // This is the pointer to the audio data itself.
     _self->riffData.data = (uint8_t*)rawData 
         + sizeof(AudioRiffHeader) 
         + sizeof(AudioFmtChunk) 
         + dataChunkOffset
         + sizeof(AudioDataChunk);
 
+    // Compute the length of the entire audio in milliseconds
     _self->riffData.audioLength = _self->riffData.dataSize 
         * MICROSECONDS_PER_MILLISECOND 
         / _self->riffData.byteRate;
@@ -335,62 +380,39 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
     return true;
 }
 
-void _initializeAudioObject(_AudioObject *_self) {
-    _self->riffData.sampleRate = 0;
-    _self->riffData.byteRate = 0;
-    _self->riffData.dataSize = 0;
-    _self->riffData.audioLength = 0;
-    _self->riffData.channelAmount = 0;
-    _self->riffData.blockAlign = 0;
-    _self->riffData.bitsPerSample = 0;
-    _self->riffData.data = NULL;
-    _self->pcmHandle = NULL;
-    _self->thread = NULL;
-    _self->externalBarrier = NULL;
-    _self->internalBarrier = NULL;
-    _self->actionLock = NULL;
-    _self->error = NULL;
-    _self->soundDeviceName = NULL;
-    _self->currentFrame = 0;
-    _self->lastFrame = 0;
-    _self->timeResolution = 0;
-    _self->alsaBufferSize = 0;
-    _self->jumpTarget = 0;
-    _self->soundDeviceNameSet = false;
-    _self->useExternalBarrier = false;
-    _self->isPlaying = false;
-    _self->isPaused = false;
-    _self->playFlag = false;
-    _self->pauseFlag = false;
-    _self->stopFlag = false;
-    _self->haltFlag = false;
-    _self->jumpFlag = false;
-}
-
 bool _setSoundDeviceName(
     _AudioObject *audioObject, AudioConfiguration *configuration
 ) {
+    /* This function determines the name of the audio device used
+    * to play the audio. It can be specifed by the user. If the user
+    * passes NULL it is set to the default device. */
     if (configuration->soundDeviceName == NULL) {
-        audioObject->soundDeviceName = "default";
-        audioObject->soundDeviceNameSet = false;
+        // Use the default name and remember that it was not set by the user.
+        audioObject->soundDeviceName = DEFAULT_SOUND_DEVICE_NAME;
+        audioObject->soundDeviceNameSetByUser = false;
     } else {
+        // Allocate memory for the device name
         audioObject->soundDeviceName = (char*)malloc(
             configuration->soundDeviceNameSize + 1
         );
+        // Fail if allocation failed
         if (audioObject->soundDeviceName == NULL) {
             audioObject->error->type = AUDIO_ERROR_MEMORY_ALLOCATION_FAILED;
             audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return false;
         }
+        // Copy the name to the allocatec memory
         memcpy(
             audioObject->soundDeviceName, 
             configuration->soundDeviceName, 
             configuration->soundDeviceNameSize
         );
+        // Terminate it with zero, just in ase
         audioObject->soundDeviceName[
             configuration->soundDeviceNameSize
         ] = '\0';
-        audioObject->soundDeviceNameSet = true;
+        // Remember that it was set to free the allocated memory later.
+        audioObject->soundDeviceNameSetByUser = true;
     }
     return true;
 }
@@ -399,17 +421,20 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
     _AudioObject *audioObject = (_AudioObject*)malloc(sizeof(_AudioObject));
     if (audioObject == NULL) { return NULL; }
     
-    _initializeAudioObject(audioObject);
+    // Initialize the entire object with zeros.
+    memset(audioObject, 0, sizeof(_AudioObject));
 
+    // Initialize the error object
     audioObject->error = (AudioError*)malloc(sizeof(AudioError));
     if (audioObject->error == NULL) { 
         free(audioObject);
         return NULL; 
     }
-    audioObject->error->type = AUDIO_ERROR_NO_ERROR;
-    audioObject->error->level = AUDIO_ERROR_LEVEL_INFO;
-    audioObject->error->alsaErrorNumber = 0;
+    _resetError(audioObject);
 
+    // Read the input file. From here on in case of an error an incomplete
+    // audioObject is returned containing a error object describing
+    // what went wrong.
     if (!_readRiffFile(
         audioObject, configuration->rawData, configuration->rawDataSize
     )) {
@@ -420,6 +445,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Initialize an ALSA pcm object
     if ((audioObject->error->alsaErrorNumber = snd_pcm_open(
         &audioObject->pcmHandle, 
         audioObject->soundDeviceName, 
@@ -431,6 +457,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Allocate space for pcm hardware parameters and initialize them.
     snd_pcm_hw_params_t *hardwareParameters;
     snd_pcm_hw_params_alloca(&hardwareParameters);
 
@@ -442,6 +469,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Tell ALSA that the channels are stored in an interleaved format
     if ((audioObject->error->alsaErrorNumber = snd_pcm_hw_params_set_access(
         audioObject->pcmHandle, 
         hardwareParameters, 
@@ -452,6 +480,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Determine the pcm format from the bit rate
     snd_pcm_format_t format;
     switch (audioObject->riffData.bitsPerSample) {
         case 8:  format = SND_PCM_FORMAT_S8;         break;
@@ -472,6 +501,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Set the amount of channels (1 in mono, 2 is stereo)
     if ((audioObject->error->alsaErrorNumber = snd_pcm_hw_params_set_channels(
         audioObject->pcmHandle, 
         hardwareParameters, 
@@ -482,6 +512,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Set the sample rate
     if ((audioObject->error->alsaErrorNumber = snd_pcm_hw_params_set_rate(
         audioObject->pcmHandle, 
         hardwareParameters, 
@@ -493,6 +524,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Set the ALSA ring buffer size
     snd_pcm_uframes_t bufferSizeInSamples = audioObject->riffData.sampleRate 
         * BUFFER_SIZE_FACTOR
         * configuration->timeResolution
@@ -506,6 +538,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
+    // Put the parameters into the pcm object
     if ((audioObject->error->alsaErrorNumber = snd_pcm_hw_params(
         audioObject->pcmHandle, hardwareParameters
     )) < 0) {
@@ -513,6 +546,9 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return (AudioObject*)audioObject;
     }
+
+    // Set the remaining members of the audioObject. For explanation see
+    // the type definition.
 
     audioObject->timeResolution = configuration->timeResolution;
     audioObject->currentFrame = 0;
@@ -539,6 +575,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
     audioObject->jumpFlag = false;
     audioObject->jumpTarget = 0;
 
+    // Start the audio thread and return the assembled object
     pthread_create(audioObject->thread, NULL, _mainloop, (void*)audioObject);
     return (AudioObject)audioObject;
 }
@@ -566,7 +603,7 @@ void audioDestroy(AudioObject *self) {
         free(_self->actionLock);
     }
 
-    if (_self->soundDeviceNameSet) free(_self->soundDeviceName);
+    if (_self->soundDeviceNameSetByUser) free(_self->soundDeviceName);
     if (_self->error) free(_self->error);
 
     free(_self);
