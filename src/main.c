@@ -58,7 +58,6 @@ void mainloop(AudioObject *audio) {
         }
         if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
             const char *errorString = audioGetErrorString(error);
-            audioResetError(audio);
             fprintf(stderr, "Warning: %s\n", errorString);
         }
     }
