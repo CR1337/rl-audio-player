@@ -8,6 +8,8 @@ It can only play WAV files. It can play, pause and stop them. Also it can jump t
 
 ## Building
 
+Install the dependencies in [apt-depenedencies.txt](https://github.com/CR1337/rl-audio-player/blob/main/apt-dependencies.txt) using `apt`.
+
 Run the Makefile with 
 ```
 make
