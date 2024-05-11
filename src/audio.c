@@ -721,7 +721,6 @@ uint32_t audioGetTotalDuration(AudioObject *self) {
 
 AudioError * audioGetError(AudioObject *self) {
     _AudioObject *_self = (_AudioObject*)self;
-    _resetError(_self);
     return _self->error;
 }
 
