@@ -16,7 +16,6 @@ void mainloop(AudioObject *audio) {
     printf("Playing\n");
     if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
         const char *errorString = audioGetErrorString(error);
-        audioResetError(audio);
         fprintf(stderr, "Warning: %s\n", errorString);
     }
 
