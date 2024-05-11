@@ -123,3 +123,26 @@ audioDestroy(audio);
 /*...*/
 
 ```
+
+### Windows Subsystem for Linux (WSL)
+
+While the target system for this project is a Raspberry Pi, developers working on this project may be using Windows Subsystem for Linux (WSL) will potentially encounter an issue where audio playback does not work out of the box. Audio playback in WSL requires some additional configuration.
+
+To enable audio in WSL:
+
+1. Install the ALSA plugins:
+   ```
+   sudo apt install libasound2-plugins
+   ```
+
+2. Add the following lines to your `~/.asoundrc` file:
+   ```
+   pcm.!default { type pulse fallback "sysdefault" }
+   ctl.!default { type pulse }
+   ```
+
+This configures ALSA to connect to a PulseAudio server as the default device. The PulseAudio WSL daemon acts as a bridge to transmit audio from the WSL environment to the Windows host.
+
+After applying this configuration change, audio should work when running the rl-audio-player example program in WSL.
+
+You can find more details and background information [here](https://github.com/CR1337/rl-audio-player/issues/2).
