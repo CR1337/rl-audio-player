@@ -2,7 +2,7 @@
 
 # rl-audio-player
 
-A simple library that provides audio playback capailities.
+A simple library that provides audio playback capabilities.
 
 It can only play WAV files. It can play, pause and stop them. Also it can jump to different timestamps.
 
