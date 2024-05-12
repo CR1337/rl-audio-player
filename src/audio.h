@@ -150,7 +150,7 @@ void audioStop(AudioObject *self, pthread_barrier_t *barrier);
  * @param milliseconds The time to jump to in milliseconds.
 */
 void audioJump(
-    AudioObject *self, pthread_barrier_t *barrier, uint32_t milliseconds
+    AudioObject *self, pthread_barrier_t *barrier, uint64_t milliseconds
 );
 
 /**
@@ -172,13 +172,13 @@ bool audioGetIsPaused(AudioObject *self);
  * 
  * @param self The audio object.
 */
-uint32_t audioGetCurrentTime(AudioObject *self);
+uint64_t audioGetCurrentTime(AudioObject *self);
 /**
  * Returns the total duration of the audio in milliseconds.
  * 
  * @param self The audio object.
 */
-uint32_t audioGetTotalDuration(AudioObject *self);
+uint64_t audioGetTotalDuration(AudioObject *self);
 
 /**
  * Returns the last error that occurred.

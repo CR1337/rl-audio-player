@@ -37,8 +37,8 @@ void mainloop(AudioObject *audio) {
                 break;
 
             case 'j':
-                uint32_t milliseconds;
-                if (scanf("%u", &milliseconds) == EOF) {
+                uint64_t milliseconds;
+                if (scanf("%lu", &milliseconds) == EOF) {
                     fprintf(stderr, "Could not read time.");
                     break;
                 }
@@ -47,7 +47,7 @@ void mainloop(AudioObject *audio) {
                 break;
 
             case 't':
-                uint32_t currentTime = audioGetCurrentTime(audio);
+                uint64_t currentTime = audioGetCurrentTime(audio);
                 float currentTimeSeconds = currentTime / 1000.0f;
                 printf("Current time: %.2f seconds\n", currentTimeSeconds);
                 break;

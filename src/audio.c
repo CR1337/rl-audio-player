@@ -66,15 +66,15 @@ typedef struct __attribute__((packed)) {
  * @brief This represents the data necessary to play the audio.
 */
 typedef struct {
+    uint64_t audioLength;  /* The length of the audio in milliseconds */
     uint32_t sampleRate;  /* The sample rate in frames/second */
     uint32_t byteRate;  /* How many bytes are "played" per second */
     uint32_t dataSize;  /* The amount of audio data in bytes */
-    uint32_t audioLength;  /* The length of the audio in milliseconds */
     uint16_t channelAmount;  /* The amount of channels, 1 is mono, 2 is stereo */
     uint16_t blockAlign;  // TODO
     uint16_t bitsPerSample;  /* The amount of bits per sample */
     uint8_t *data;  /* A pointer to the audio data */
-    uint8_t __align;
+    uint8_t __align[5];
 } AudioRiffData;
 
 typedef struct {
@@ -86,11 +86,11 @@ typedef struct {
     pthread_mutex_t *actionLock;
     AudioError *error;
     char *soundDeviceName;
+    uint64_t jumpTarget;  // in milliseconds
     uint32_t currentFrame;
     uint32_t lastFrame;
     uint32_t timeResolution; 
     uint32_t alsaBufferSize;
-    uint32_t jumpTarget;  // in milliseconds
     Bool8 soundDeviceNameSetByUser;
     Bool8 useExternalBarrier;
     Bool8 isPlaying;
@@ -100,7 +100,7 @@ typedef struct {
     Bool8 stopFlag;
     Bool8 haltFlag;
     Bool8 jumpFlag;
-    uint8_t __align[3];
+    uint8_t __align[7];
 } _AudioObject;
 
 void _resetError(_AudioObject *_self) {
@@ -373,9 +373,9 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
         + sizeof(AudioDataChunk);
 
     // Compute the length of the entire audio in milliseconds
-    _self->riffData.audioLength = _self->riffData.dataSize 
-        * MICROSECONDS_PER_MILLISECOND 
-        / _self->riffData.byteRate;
+    _self->riffData.audioLength = (uint64_t)(_self->riffData.dataSize)
+        * MILLISECONDS_PER_SECOND 
+        / (uint64_t)(_self->riffData.byteRate);
 
     return true;
 }
@@ -677,7 +677,7 @@ void audioStop(AudioObject *self, pthread_barrier_t *barrier) {
 }
 
 void audioJump(
-    AudioObject *self, pthread_barrier_t *barrier, uint32_t milliseconds
+    AudioObject *self, pthread_barrier_t *barrier, uint64_t milliseconds
 ) {
     _AudioObject *_self = (_AudioObject*)self;
     _resetError(_self);
@@ -705,7 +705,7 @@ bool audioGetIsPaused(AudioObject *self) {
     return _self->isPaused; 
 }
 
-uint32_t audioGetCurrentTime(AudioObject *self) {
+uint64_t audioGetCurrentTime(AudioObject *self) {
     _AudioObject *_self = (_AudioObject*)self;
     _resetError(_self);
     return _self->currentFrame 
@@ -713,7 +713,7 @@ uint32_t audioGetCurrentTime(AudioObject *self) {
         / _self->riffData.byteRate;
 }
 
-uint32_t audioGetTotalDuration(AudioObject *self) { 
+uint64_t audioGetTotalDuration(AudioObject *self) { 
     _AudioObject *_self = (_AudioObject*)self;
     _resetError(_self);
     return _self->riffData.audioLength; 
