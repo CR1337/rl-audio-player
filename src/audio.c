@@ -71,35 +71,38 @@ typedef struct {
     uint32_t byteRate;  /* How many bytes are "played" per second */
     uint32_t dataSize;  /* The amount of audio data in bytes */
     uint16_t channelAmount;  /* The amount of channels, 1 is mono, 2 is stereo */
-    uint16_t blockAlign;  // TODO
+    uint16_t blockAlign;  /* Amount of bytes per sample */
     uint16_t bitsPerSample;  /* The amount of bits per sample */
     uint8_t *data;  /* A pointer to the audio data */
     uint8_t __align[5];
 } AudioRiffData;
 
+/**
+ * @brief This is the entire audio object given to the user as an opaque pointer.
+*/
 typedef struct {
-    AudioRiffData riffData;
-    snd_pcm_t *pcmHandle;
-    pthread_t *thread;
-    pthread_barrier_t *externalBarrier;
-    pthread_barrier_t *internalBarrier;
-    pthread_mutex_t *actionLock;
-    AudioError *error;
-    char *soundDeviceName;
-    uint64_t jumpTarget;  // in milliseconds
-    uint32_t currentFrame;
-    uint32_t lastFrame;
-    uint32_t timeResolution; 
-    uint32_t alsaBufferSize;
-    Bool8 soundDeviceNameSetByUser;
-    Bool8 useExternalBarrier;
-    Bool8 isPlaying;
-    Bool8 isPaused;
-    Bool8 playFlag;
-    Bool8 pauseFlag;
-    Bool8 stopFlag;
-    Bool8 haltFlag;
-    Bool8 jumpFlag;
+    AudioRiffData riffData;  /* The data necessary to play the audio */
+    snd_pcm_t *pcmHandle;  /* The ALSA pcm handle */
+    pthread_t *thread;  /* The thread that plays the audio */
+    pthread_barrier_t *externalBarrier;  /* A barrier to synchronize with potential other threads created by the user */
+    pthread_barrier_t *internalBarrier;  /* A barrier to synchronize the user thread with the audio thread */
+    pthread_mutex_t *actionLock;  /* A lock to prevent multiple actions at the same time */
+    AudioError *error;  /* An error object to communicate errors to the user */
+    char *soundDeviceName;  /* The name of the sound device */
+    uint64_t jumpTarget;  /* The target time to jump to in milliseconds */
+    uint32_t currentFrame;  /* The current frame being played */
+    uint32_t lastFrame;  /* The last frame that can be played */
+    uint32_t timeResolution;  /* The time resolution in milliseconds */
+    uint32_t alsaBufferSize;  /* The size of the ALSA buffer in frames */
+    Bool8 soundDeviceNameSetByUser;  /* Whether the sound device name was set by the user */
+    Bool8 useExternalBarrier;  /* Whether an external barrier is used */
+    Bool8 isPlaying;  /* Whether the audio is playing */
+    Bool8 isPaused;  /* Whether the audio is paused */
+    Bool8 playFlag;  /* Whether the audio should be played */
+    Bool8 pauseFlag;  /* Whether the audio should be paused */
+    Bool8 stopFlag;  /* Whether the audio should be stopped */
+    Bool8 haltFlag;  /* Whether the audio thread should be stopped */
+    Bool8 jumpFlag;  /* Whether the audio should jump to a specific time */
     uint8_t __align[7];
 } _AudioObject;
 
@@ -609,24 +612,39 @@ void audioDestroy(AudioObject *self) {
     free(_self);
 }
 
+/**
+ * @brief This function locks the action lock and checks if the action is allowed.
+*/
 bool _lockAction(
     _AudioObject *_self, pthread_barrier_t *barrier, bool predicate
 ) {
+    // This lock prevents any other action from being processed while
+    // the current action is being processed.
     pthread_mutex_lock(_self->actionLock);
+
+    // If the predicate is false the action is not allowed.
     if (!predicate) {
         pthread_mutex_unlock(_self->actionLock);
         return false;
     }
+
+    // If an external barrier is used, wait for it.
     _self->externalBarrier = barrier;
     pthread_barrier_init(
         _self->internalBarrier, NULL, INTERNAL_BARRIER_COUNT
     );
+
     return true;
 }
 
+/**
+ * @brief This function unlocks the action lock and waits for the audio thread to process the action.
+*/
 void _unlockAction(_AudioObject *_self) {
+    // wait for the audio thread to process the action
     pthread_barrier_wait(_self->internalBarrier);
     pthread_barrier_destroy(_self->internalBarrier);
+
     pthread_mutex_unlock(_self->actionLock);
 }
 
@@ -635,7 +653,7 @@ bool audioPlay(AudioObject *self, pthread_barrier_t *barrier) {
     _resetError(_self);
     if (!_lockAction(
         _self, barrier, 
-        !_self->isPlaying
+        !_self->isPlaying  // Only allow playing if not already playing
     )) {
         _self->error->type = AUDIO_WARING_ALREADY_PLAYING;
         _self->error->level = AUDIO_ERROR_LEVEL_WARNING;
@@ -653,7 +671,7 @@ bool audioPause(AudioObject *self, pthread_barrier_t *barrier) {
     _resetError(_self);
     if (!_lockAction(
         _self, barrier, 
-        _self->isPlaying
+        _self->isPlaying  // Only allow pausing if playing
     )) {
         _self->error->type = AUDIO_WARNING_ALREADY_PAUSED;
         _self->error->level = AUDIO_ERROR_LEVEL_WARNING;
