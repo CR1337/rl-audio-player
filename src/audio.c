@@ -726,9 +726,9 @@ bool audioGetIsPaused(AudioObject *self) {
 uint64_t audioGetCurrentTime(AudioObject *self) {
     _AudioObject *_self = (_AudioObject*)self;
     _resetError(_self);
-    return _self->currentFrame 
+    return (uint64_t)(_self->currentFrame)
         * MILLISECONDS_PER_SECOND
-        / _self->riffData.byteRate;
+        / (uint64_t)(_self->riffData.sampleRate);
 }
 
 uint64_t audioGetTotalDuration(AudioObject *self) { 
