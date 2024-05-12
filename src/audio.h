@@ -12,50 +12,50 @@
 */
 enum AudioErrorType {
     // info
-    AUDIO_ERROR_NO_ERROR,  /**< No error occurred. */
+    AUDIO_ERROR_NO_ERROR,  /* No error occurred. */
 
     // warnings
-    AUDIO_WARNING_ALREADY_PLAYING,  /**< The audio is already playing. */
-    AUDIO_WARNING_ALREADY_PAUSED,  /**< The audio is already paused. */
-    AUDIO_WARNING_JUMPED_BEYOND_END,  /**< The given time is beyond the end of the audio. */
+    AUDIO_WARNING_ALREADY_PLAYING,  /* The audio is already playing. */
+    AUDIO_WARNING_ALREADY_PAUSED,  /* The audio is already paused. */
+    AUDIO_WARNING_JUMPED_BEYOND_END,  /* The given time is beyond the end of the audio. */
 
     // errors
     // reading riff file
-    AUDIO_ERROR_FILE_TOO_SMALL,  /**< The file is too small. */
-    AUDIO_ERROR_INVALID_RIFF_MAGIC_NUMBER,  /**< The RIFF magic number is invalid. */
-    AUDIO_ERROR_INVALID_WAVE_MAGIC_NUMBER,  /**< The WAVE magic number is invalid. */
-    AUDIO_ERROR_INVALID_FILE_SIZE,  /**< The file size is invalid. */
-    AUDIO_ERROR_IMVALID_FMT_MAGIC_NUMBER,  /**< The fmt magic number is invalid. */
-    AUDIO_ERROR_INVALID_FMT_SIZE,  /**< The fmt size is invalid. */
-    AUDIO_ERROR_NO_PCM_FORMAT,  /**< The audio is not in PCM format. */
-    AUDIO_ERROR_INVALID_BYTE_RATE,  /**< The byte rate is invalid. */
-    AUDIO_ERROR_INVALID_BLOCK_ALIGN,  /**< The block align is invalid. */
-    AUDIO_ERROR_DATA_CHUNK_NOT_FOUND,  /**< The data chunk was not found. */
-    AUDIO_ERROR_INVALID_DATA_MAGIC_NUMBER,  /**< The data magic number is invalid. */
-    AUDIO_ERROR_INVALID_DATA_SIZE,  /**< The data size is invalid. */
+    AUDIO_ERROR_FILE_TOO_SMALL,  /* The file is too small. */
+    AUDIO_ERROR_INVALID_RIFF_MAGIC_NUMBER,  /* The RIFF magic number is invalid. */
+    AUDIO_ERROR_INVALID_WAVE_MAGIC_NUMBER,  /* The WAVE magic number is invalid. */
+    AUDIO_ERROR_INVALID_FILE_SIZE,  /* The file size is invalid. */
+    AUDIO_ERROR_IMVALID_FMT_MAGIC_NUMBER,  /* The fmt magic number is invalid. */
+    AUDIO_ERROR_INVALID_FMT_SIZE,  /* The fmt size is invalid. */
+    AUDIO_ERROR_NO_PCM_FORMAT,  /* The audio is not in PCM format. */
+    AUDIO_ERROR_INVALID_BYTE_RATE,  /* The byte rate is invalid. */
+    AUDIO_ERROR_INVALID_BLOCK_ALIGN,  /* The block align is invalid. */
+    AUDIO_ERROR_DATA_CHUNK_NOT_FOUND,  /* The data chunk was not found. */
+    AUDIO_ERROR_INVALID_DATA_MAGIC_NUMBER,  /* The data magic number is invalid. */
+    AUDIO_ERROR_INVALID_DATA_SIZE,  /* The data size is invalid. */
     // alsa
-    AUDIO_ERROR_ALSA_ERROR,  /**< An ALSA error occurred. */
+    AUDIO_ERROR_ALSA_ERROR,  /* An ALSA error occurred. */
     // other
-    AUDIO_ERROR_MEMORY_ALLOCATION_FAILED,  /**< Memory allocation failed. */
-    AUDIO_UNSUPPORTED_BITS_PER_SAMPLE  /**< The bits per sample are not supported. */
+    AUDIO_ERROR_MEMORY_ALLOCATION_FAILED,  /* Memory allocation failed. */
+    AUDIO_UNSUPPORTED_BITS_PER_SAMPLE  /* The bits per sample are not supported. */
 };
 
 /**
  * @brief This represents the severity level of an audio error.
 */
 enum AudioErrorLevel {
-    AUDIO_ERROR_LEVEL_INFO,  /**< Just informational. */
-    AUDIO_ERROR_LEVEL_WARNING,  /**< A warning. Everything works fine. */
-    AUDIO_ERROR_LEVEL_ERROR  /**< An unrecoverable error. */
+    AUDIO_ERROR_LEVEL_INFO,  /* Just informational. */
+    AUDIO_ERROR_LEVEL_WARNING,  /* A warning. Everything works fine. */
+    AUDIO_ERROR_LEVEL_ERROR  /* An unrecoverable error. */
 };
 
 /**
  * @brief his represents an audio error.
 */
 typedef struct {
-    enum AudioErrorType type;  /**< The type of the error. */
-    enum AudioErrorLevel level;  /**< The severity level of the error. */
-    int alsaErrorNumber;  /**< The ALSA error number if the error occured in the ALSA library. */
+    enum AudioErrorType type;  /* The type of the error. */
+    enum AudioErrorLevel level;  /* The severity level of the error. */
+    int alsaErrorNumber;  /* The ALSA error number if the error occured in the ALSA library. */
 } AudioError;
 
 /**
@@ -65,11 +65,11 @@ typedef struct {
  * like audioPlay() or audioPause() are processed.
 */
 typedef struct {
-    void *rawData;  /**< The raw audio data as found in a WAV file. */
-    size_t rawDataSize;  /**< The size of the raw audio data. */
-    char *soundDeviceName;  /**< The name of the sound device to use. */
-    size_t soundDeviceNameSize;  /**< The size of the sound device name. */
-    uint32_t timeResolution;  /**< The time resolution in milliseconds. */
+    void *rawData;  /* The raw audio data as found in a WAV file. */
+    size_t rawDataSize;  /* The size of the raw audio data. */
+    char *soundDeviceName;  /* The name of the sound device to use. */
+    size_t soundDeviceNameSize;  /* The size of the sound device name. */
+    uint32_t timeResolution;  /* The time resolution in milliseconds. */
 } AudioConfiguration;
 
 /**
