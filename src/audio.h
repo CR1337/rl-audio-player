@@ -15,7 +15,7 @@ enum AudioErrorType {
     AUDIO_ERROR_NO_ERROR,  /**< No error occurred. */
 
     // warnings
-    AUDIO_WARING_ALREADY_PLAYING,  /**< The audio is already playing. */
+    AUDIO_WARNING_ALREADY_PLAYING,  /**< The audio is already playing. */
     AUDIO_WARNING_ALREADY_PAUSED,  /**< The audio is already paused. */
     AUDIO_WARNING_JUMPED_BEYOND_END,  /**< The given time is beyond the end of the audio. */
 

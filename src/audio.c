@@ -655,7 +655,7 @@ bool audioPlay(AudioObject *self, pthread_barrier_t *barrier) {
         _self, barrier, 
         !_self->isPlaying  // Only allow playing if not already playing
     )) {
-        _self->error->type = AUDIO_WARING_ALREADY_PLAYING;
+        _self->error->type = AUDIO_WARNING_ALREADY_PLAYING;
         _self->error->level = AUDIO_ERROR_LEVEL_WARNING;
         return false;
     }
@@ -749,7 +749,7 @@ const char * audioGetErrorString(AudioError *error) {
             return "No error";
             
         // warnings
-        case AUDIO_WARING_ALREADY_PLAYING:
+        case AUDIO_WARNING_ALREADY_PLAYING:
             return "Audio is already playing";
 
         case AUDIO_WARNING_ALREADY_PAUSED:
