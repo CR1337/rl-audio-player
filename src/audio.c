@@ -486,7 +486,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
     // Determine the pcm format from the bit rate
     snd_pcm_format_t format;
     switch (audioObject->riffData.bitsPerSample) {
-        case 8:  format = SND_PCM_FORMAT_S8;         break;
+        case 8:  format = SND_PCM_FORMAT_U8;         break;
         case 16: format = SND_PCM_FORMAT_S16_LE;     break;
         case 24: format = SND_PCM_FORMAT_S24_3LE;    break;
         case 32: format = SND_PCM_FORMAT_S32_LE;     break;
