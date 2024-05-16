@@ -29,6 +29,8 @@ typedef uint8_t Bool8;
 
 // The following 3 structs defined the structure of a WAV file.
 
+// TODO: Add extended format chunk, look for it during reading and use it if found
+
 /**
  * @brief The RIFF header of a WAV file
 */
