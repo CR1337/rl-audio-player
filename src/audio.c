@@ -9,12 +9,27 @@ typedef uint8_t Bool8;
 
 #define RIFF_MAGIC (uint8_t[4]){'R', 'I', 'F', 'F'}
 #define WAVE_MAGIC (uint8_t[4]){'W', 'A', 'V', 'E'}
+#define LIST_MAGIC (uint8_t[4]){'L', 'I', 'S', 'T'}
 #define FMT_MAGIC  (uint8_t[4]){'f', 'm', 't', ' '}
+#define FACT_MAGIC (uint8_t[4]){'f', 'a', 'c', 't'}
 #define DATA_MAGIC (uint8_t[4]){'d', 'a', 't', 'a'}
 #define MAGIC_SIZE (4)
-#define FMT_CHUNK_SIZE (16)
 
-#define PCM_FORMAT (1)
+#define FMT_CHUNK_SIZE_PCM (16)
+#define FMT_CHUNK_SIZE_NON_PCM (18)
+#define FMT_CHUNK_SIZE_EXTENSIBLE (40)
+
+#define EXTENSIBLE_GUID (uint8_t[14]){ \
+    0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,  \
+    0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71 \
+}
+
+#define WAVE_FORMAT_PCM (0x0001)
+#define WAVE_FORMAT_IEEE_FLOAT (0x0003)
+#define WAVE_FORMAT_ALAW (0x0006)
+#define WAVE_FORMAT_MULAW (0x0007)
+#define WAVE_FORMAT_EXTENSIBLE (0xFFFE)
+
 #define PCM_BLOCK_MODE (0)
 #define PCM_SEARCH_DIRECTION_NEAR (0)
 
@@ -27,7 +42,7 @@ typedef uint8_t Bool8;
 #define BUFFER_SIZE_FACTOR (8)
 #define INTERNAL_BARRIER_COUNT (2)
 
-// The following 3 structs defined the structure of a WAV file.
+// The following 7 structs define the structure of a WAV file.
 
 // TODO: Add extended format chunk, look for it during reading and use it if found
 
@@ -41,7 +56,7 @@ typedef struct __attribute__((packed)) {
 } AudioRiffHeader;
 
 /**
- * @brief The Fmt Chunk of a WAV file
+ * @brief The Fmt Chunk of a PCM WAV file
 */
 typedef struct __attribute__((packed)) {
     uint8_t fmtMagic[4];
@@ -52,7 +67,58 @@ typedef struct __attribute__((packed)) {
     uint32_t byteRate;
     uint16_t blockAlign;
     uint16_t bitsPerSample;
-} AudioFmtChunk;
+} AudioPcmFmtChunk;
+
+/**
+ * @brief The Fmt Chunk of a non-PCM WAV file
+*/
+typedef struct __attribute__((packed)) {
+    uint8_t fmtMagic[4];
+    uint32_t fmtSize;
+    uint16_t audioFormat;
+    uint16_t numChannels;
+    uint32_t sampleRate;
+    uint32_t byteRate;
+    uint16_t blockAlign;
+    uint16_t bitsPerSample;
+    uint16_t extraSize;
+} AudioNonPcmFmtChunk;
+
+/**
+ * @brief The Fmt Chunk of an extensible WAV file
+*/
+typedef struct __attribute__((packed)) {
+    uint8_t fmtMagic[4];
+    uint32_t fmtSize;
+    uint16_t audioFormat;
+    uint16_t numChannels;
+    uint32_t sampleRate;
+    uint32_t byteRate;
+    uint16_t blockAlign;
+    uint16_t bitsPerSample;
+    uint16_t extraSize;
+    uint16_t validBitsPerSample;
+    uint32_t channelMask;
+    uint8_t guid[14];
+} AudioExtensibleFmtChunk;
+
+/**
+ * @brief The Fact Chunk of a WAV file
+*/
+typedef struct __attribute__((packed)) {
+    uint8_t factMagic[4];
+    uint32_t factSize;
+    uint32_t sampleLength;
+} AudioFactChunk;
+
+/**
+ * @brief The LIST chunk of a WAV file
+*/
+typedef struct __attribute__((packed)) {
+    uint8_t listMagic[4];
+    uint32_t listSize;
+    uint8_t listType[4];
+} AudioListChunk;
 
 /**
  * @brief The DATA chunk of a WAV file
@@ -306,7 +372,7 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
     }
-    if (fmtChunk->audioFormat != PCM_FORMAT) {
+    if (fmtChunk->audioFormat != WAVE_FORMAT_PCM) {
         _self->error->type = AUDIO_ERROR_NO_PCM_FORMAT;
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
