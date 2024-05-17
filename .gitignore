@@ -1,3 +1,5 @@
 .vscode
+.venv
 example/
 build/
+**/__pycache__
