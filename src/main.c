@@ -28,7 +28,7 @@ void mainloop(AudioObject *audio) {
 
             case 'r':
                 audioPlay(audio, &barrier);
-                printf("Resumed\n");
+                printf("Play/Resumed\n");
                 break;
 
             case 's':
@@ -43,13 +43,28 @@ void mainloop(AudioObject *audio) {
                     break;
                 }
                 audioJump(audio, &barrier, milliseconds);
-                printf("Jumped to %u milliseconds\n", milliseconds);
+                printf("Jumped to %lu milliseconds\n", milliseconds);
                 break;
 
             case 't':
                 uint64_t currentTime = audioGetCurrentTime(audio);
                 float currentTimeSeconds = currentTime / 1000.0f;
                 printf("Current time: %.2f seconds\n", currentTimeSeconds);
+                break;
+
+            case 'v':
+                uint8_t volume;
+                if (scanf("%hhu", &volume) == EOF) {
+                    fprintf(stderr, "Could not read volume.");
+                    break;
+                }
+                audioSetVolume(audio, volume);
+                printf("Set volume to %u\n", volume);
+                break;
+
+            case '?':
+                uint8_t currentVolume = audioGetVolume(audio);
+                printf("Current volume: %u\n", currentVolume);
                 break;
 
             case 'q':
@@ -115,6 +130,8 @@ void printHelp(char *programName) {
     printf("s\t\tStop playback.\n");
     printf("j T\t\tJump to T milliseconds.\n");
     printf("t\t\tShow current milliseconds.\n");
+    printf("v V\t\tSet volume to V [0..100].\n");
+    printf("?\t\tShow current volume [0..100].\n");
     printf("q\t\tQuit program.\n");
 }
 
