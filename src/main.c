@@ -138,7 +138,7 @@ void printHelp(char *programName) {
 void parseArguments(int argc, char *argv[], char **filename, bool *map, bool *showHelp) {
     switch (argc) {
         case 2:
-            if (!strncmp(argv[1], "-m", strnlen(argv[1], 3))) {
+            if (!strncmp(argv[1], "-h", strnlen(argv[1], 3))) {
                 *showHelp = true;
                 return;
             } else {
