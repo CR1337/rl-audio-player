@@ -688,7 +688,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
     }
     free(channelMap);
     int error = snd_pcm_set_chmap(audioObject->pcmHandle, channelMap);
-    if (!error || error != -ENXIO) {
+    if (error && error != -ENXIO) { 
         audioObject->error->type = AUDIO_ERROR_ALSA_ERROR;
         audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
         audioObject->error->alsaErrorNumber = error;
