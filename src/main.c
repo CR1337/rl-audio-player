@@ -13,7 +13,7 @@ void mainloop(AudioObject *audio) {
 
     audioPlay(audio, &barrier);
     AudioError *error = audioGetError(audio);
-    printf("Playing\n");
+    printf("Playing\nEnter 'q' to quit\n");
     if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
         const char *errorString = audioGetErrorString(error);
         fprintf(stderr, "Warning: %s\n", errorString);
