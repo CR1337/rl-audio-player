@@ -341,6 +341,7 @@ bool _readFactCunk(_AudioObject *_self, AudioFactChunk *factChunk) {
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
     }
+    // The fact chunk contains the amount of samples per channel
     _self->riffData.samplesPerChannel = factChunk->samplesPerChannel;
     return true;
 }
@@ -348,11 +349,13 @@ bool _readFactCunk(_AudioObject *_self, AudioFactChunk *factChunk) {
 bool _readNonPcmFmtChunkExtension(
     _AudioObject *_self, AudioNonPcmFmtChunkExtension *nonPcmExtension
 ) {
+    // non-PCM extensions that are not extensible have size 0
     if (nonPcmExtension->extraSize != 0) {
         _self->error->type = AUDIO_ERROR_INVALID_NON_PCM_EXTENSION_SIZE;
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
     }
+    // every non-PCM extension must have a fact chunk
     AudioFactChunk *factChunk = (AudioFactChunk*)(
         (uint8_t*)nonPcmExtension + sizeof(AudioNonPcmFmtChunkExtension)
     );
@@ -365,6 +368,7 @@ bool _readNonPcmFmtChunkExtension(
 bool _readExtensibleFmtChunkExtension(
     _AudioObject *_self, AudioExtensibleFmtChunkExtension *extensibleExtension
 ) {
+    // extensible fmt extensions have a fixed size
     if (
         extensibleExtension->extraSize 
         != EXTENSIBLE_FMT_CHUNK_EXTRA_SIZE
@@ -373,6 +377,7 @@ bool _readExtensibleFmtChunkExtension(
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
     }
+    // the extension conatains the actual audio format
     switch (extensibleExtension->audioFormat) {
         case WAVE_FORMAT_PCM:
         case WAVE_FORMAT_IEEE_FLOAT:
@@ -386,6 +391,7 @@ bool _readExtensibleFmtChunkExtension(
             return false;
             break;
     }
+    // There is a fixed guid in the extension
     if (memcmp(
         extensibleExtension->guid, EXTENSIBLE_GUID, EXTENSIBLE_GUID_SIZE
     )) {
@@ -393,7 +399,9 @@ bool _readExtensibleFmtChunkExtension(
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
         return false;
     }
+    // The channel mask is used to map channels to speakers
     _self->riffData.channelMap = extensibleExtension->channelMask;
+    // Every extensible fmt chunk must have a fact chunk
     AudioFactChunk *factChunk = (AudioFactChunk*)(
         (uint8_t*)extensibleExtension 
         + sizeof(AudioExtensibleFmtChunkExtension)
@@ -411,6 +419,7 @@ bool _readFmtChunk(_AudioObject *_self, AudioFmtChunk *fmtChunk) {
         return false;
     }
 
+    // Check if the fmt chunk has the right size
     _self->riffData.format = fmtChunk->audioFormat;
     size_t expectedFmtSize = 0;
     switch (_self->riffData.format) {
@@ -440,6 +449,7 @@ bool _readFmtChunk(_AudioObject *_self, AudioFmtChunk *fmtChunk) {
         return false;
     }
 
+    // Read the fmt chunk extension based on the format
     switch (_self->riffData.format) {
         case WAVE_FORMAT_IEEE_FLOAT:
         case WAVE_FORMAT_ALAW:
@@ -464,6 +474,7 @@ bool _readFmtChunk(_AudioObject *_self, AudioFmtChunk *fmtChunk) {
             break;
     }
 
+    // Read the rest of the fmt chunk and check if all invariants hold true.
     _self->riffData.channelAmount = fmtChunk->numChannels;
     _self->riffData.channelAmount = fmtChunk->numChannels;
     _self->riffData.sampleRate = fmtChunk->sampleRate;
@@ -570,7 +581,7 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
         * MILLISECONDS_PER_SECOND 
         / (uint64_t)(_self->riffData.byteRate);
 
-
+    // Check if the amount of samples per channel is correct
     if (
         _self->riffData.samplesPerChannel 
         != (_self->riffData.sampleRate 
@@ -622,6 +633,48 @@ bool _setSoundDeviceName(
     return true;
 }
 
+bool _setChannelMap(_AudioObject *audioObject) {
+    // Create a new channel map instance and set the amount of channels.
+    snd_pcm_chmap_t *channelMap = (snd_pcm_chmap_t*)calloc(
+        1, 
+        sizeof(snd_pcm_chmap_t) 
+            + audioObject->riffData.channelAmount 
+            * sizeof(unsigned int)
+    );
+    if (channelMap == NULL) {
+        audioObject->error->type = AUDIO_ERROR_MEMORY_ALLOCATION_FAILED;
+        audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+    channelMap->channels = audioObject->riffData.channelAmount;
+
+    // Set the channel positions based on the channel map.
+    if ((audioObject->riffData.channelMap & CHANNEL_MASK_18) == 0) {
+        // If the channel map is 0, use the default channel positions.
+        for (int i = 0; i < audioObject->riffData.channelAmount; ++i) {
+            channelMap->pos[i] = all_channel_positions[i];
+        }
+    } else {
+        for (int i = 0, j = 0; i < CHANNEL_POSITION_COUNT; ++i) {
+            if (audioObject->riffData.channelMap & (1 << i)) {
+                channelMap->pos[j++] = all_channel_positions[i];
+                if (j >= audioObject->riffData.channelAmount) break;
+            }
+        }
+    }
+    free(channelMap);
+    int error = snd_pcm_set_chmap(audioObject->pcmHandle, channelMap);
+    // ENXIO means that the device does not support channel mapping.
+    // We don't want to fail in this case.
+    if (error && error != -ENXIO) {  
+        audioObject->error->type = AUDIO_ERROR_ALSA_ERROR;
+        audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        audioObject->error->alsaErrorNumber = error;
+        return false;
+    }
+    return true;
+}
+
 AudioObject * audioInit(AudioConfiguration *configuration) {
     _AudioObject *audioObject = (_AudioObject*)malloc(sizeof(_AudioObject));
     if (audioObject == NULL) { return NULL; }
@@ -663,36 +716,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
     }
 
     // Set the channel map
-    snd_pcm_chmap_t *channelMap = (snd_pcm_chmap_t*)calloc(
-        1, 
-        sizeof(snd_pcm_chmap_t) 
-            + audioObject->riffData.channelAmount 
-            * sizeof(unsigned int)
-    );
-    if (channelMap == NULL) {
-        audioObject->error->type = AUDIO_ERROR_MEMORY_ALLOCATION_FAILED;
-        audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
-        return (AudioObject*)audioObject;
-    }
-    channelMap->channels = audioObject->riffData.channelAmount;
-    if ((audioObject->riffData.channelMap & CHANNEL_MASK_18) == 0) {
-        for (int i = 0; i < audioObject->riffData.channelAmount; ++i) {
-            channelMap->pos[i] = all_channel_positions[i];
-        }
-    } else {
-        for (int i = 0, j = 0; i < CHANNEL_POSITION_COUNT; ++i) {
-            if (audioObject->riffData.channelMap & (1 << i)) {
-                channelMap->pos[j++] = all_channel_positions[i];
-                if (j >= audioObject->riffData.channelAmount) break;
-            }
-        }
-    }
-    free(channelMap);
-    int error = snd_pcm_set_chmap(audioObject->pcmHandle, channelMap);
-    if (error && error != -ENXIO) { 
-        audioObject->error->type = AUDIO_ERROR_ALSA_ERROR;
-        audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
-        audioObject->error->alsaErrorNumber = error;
+    if (!_setChannelMap(audioObject)) {
         return (AudioObject*)audioObject;
     }
 
@@ -719,7 +743,7 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
         return (AudioObject*)audioObject;
     }
 
-    // Determine the pcm format from the bit rate
+    // Determine the pcm format from the WAV format and the bits per sample
     snd_pcm_format_t format;
     switch (audioObject->riffData.format) {
         case WAVE_FORMAT_PCM:
