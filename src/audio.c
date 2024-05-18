@@ -23,6 +23,7 @@ typedef uint8_t Bool8;
     + sizeof(AudioExtensibleFmtChunkExtension))
 
 #define FMT_CHUNK_SIZE_OFFSET (8)
+#define EXTENSIBLE_FMT_CHUNK_EXTRA_SIZE (22)
 
 #define EXTENSIBLE_GUID (uint8_t[14]){ \
     0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80,  \
@@ -366,7 +367,7 @@ bool _readExtensibleFmtChunkExtension(
 ) {
     if (
         extensibleExtension->extraSize 
-        != 22  // TODO: remove magic number
+        != EXTENSIBLE_FMT_CHUNK_EXTRA_SIZE
     ) {
         _self->error->type = AUDIO_ERROR_INVALID_EXTENSIBLE_EXTENSION_SIZE;
         _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
