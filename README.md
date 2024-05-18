@@ -38,6 +38,7 @@ Once the program is running you can control it by typing commands and pressing `
 
 |Command|Effect                              |
 |-------|------------------------------------|
+|h      |Display help.                       |
 |p      |Pause the playback.                 |
 |r      |Resume/start the playback.          |
 |s      |Stop the playback.                  |
