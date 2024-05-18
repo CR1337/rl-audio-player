@@ -10,7 +10,7 @@ It can only play WAV files. It can play, pause and stop them. Also it can jump t
 
 Install the dependencies in [apt-depenedencies.txt](https://github.com/CR1337/rl-audio-player/blob/main/apt-dependencies.txt) using
 ```bash
-sudo apt install $(cat apt-dependencies.txt)
+apt install $(cat apt-dependencies.txt)
 ```
 
 Run the Makefile with 
@@ -20,7 +20,7 @@ make
 Multiple files are created in `./build`. `./build/libaudio.so` is the shared library. `./build/main` is a small program to test the libraries capabilites.
 
 ## Testing
-To run test programs you need to install the python dependencies in [requirements.txt](https://github.com/CR1337/rl-audio-player/blob/main/requirements.txt) using
+To run test programs you need to install the python requirements in [requirements.txt](https://github.com/CR1337/rl-audio-player/blob/main/requirements.txt) and the dependencies in [apt-test-depenedencies.txt](https://github.com/CR1337/rl-audio-player/blob/main/apt-test-dependencies.txt).
 
 First create a virtual environment and activate it
 ```bash
@@ -31,6 +31,11 @@ source .venv/bin/activate
 Then install the dependencies
 ```bash
 pip install -r requirements.txt
+```
+
+And the apt dependencies
+```bash
+apt install $(cat apt-test-dependencies.txt)
 ```
 
 You can run the tests with
