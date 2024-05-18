@@ -608,8 +608,8 @@ bool _setSoundDeviceName(
         audioObject->soundDeviceNameSetByUser = false;
     } else {
         // Allocate memory for the device name
-        audioObject->soundDeviceName = (char*)malloc(
-            configuration->soundDeviceNameSize + 1
+        audioObject->soundDeviceName = (char*)calloc(
+            configuration->soundDeviceNameSize + 1, sizeof(char)
         );
         // Fail if allocation failed
         if (audioObject->soundDeviceName == NULL) {
@@ -623,10 +623,6 @@ bool _setSoundDeviceName(
             configuration->soundDeviceName, 
             configuration->soundDeviceNameSize
         );
-        // Terminate it with zero, just in ase
-        audioObject->soundDeviceName[
-            configuration->soundDeviceNameSize
-        ] = '\0';
         // Remember that it was set to free the allocated memory later.
         audioObject->soundDeviceNameSetByUser = true;
     }
@@ -676,14 +672,11 @@ bool _setChannelMap(_AudioObject *audioObject) {
 }
 
 AudioObject * audioInit(AudioConfiguration *configuration) {
-    _AudioObject *audioObject = (_AudioObject*)malloc(sizeof(_AudioObject));
+    _AudioObject *audioObject = (_AudioObject*)calloc(1, sizeof(_AudioObject));
     if (audioObject == NULL) { return NULL; }
-    
-    // Initialize the entire object with zeros.
-    memset(audioObject, 0, sizeof(_AudioObject));
 
     // Initialize the error object
-    audioObject->error = (AudioError*)malloc(sizeof(AudioError));
+    audioObject->error = (AudioError*)calloc(1, sizeof(AudioError));
     if (audioObject->error == NULL) { 
         free(audioObject);
         return NULL; 
@@ -859,13 +852,13 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
     audioObject->lastFrame = audioObject->riffData.dataSize 
         / audioObject->riffData.blockAlign;
 
-    audioObject->thread = (pthread_t*)malloc(sizeof(pthread_t));
+    audioObject->thread = (pthread_t*)calloc(1, sizeof(pthread_t));
     audioObject->externalBarrier = NULL;
-    audioObject->internalBarrier = (pthread_barrier_t*)malloc(
-        sizeof(pthread_barrier_t)
+    audioObject->internalBarrier = (pthread_barrier_t*)calloc(
+        1, sizeof(pthread_barrier_t)
     );
-    audioObject->actionLock = (pthread_mutex_t*)malloc(
-        sizeof(pthread_mutex_t)
+    audioObject->actionLock = (pthread_mutex_t*)calloc(
+        1, sizeof(pthread_mutex_t)
     );
     pthread_mutex_init(audioObject->actionLock, NULL);
 
