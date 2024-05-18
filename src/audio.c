@@ -232,9 +232,8 @@ void _jump(_AudioObject *_self) {
     _self->jumpFlag = false;
 
     // Calculate new current frame and check for overrun
-    _self->currentFrame = _self->jumpTarget 
-        * _self->riffData.byteRate 
-        / MICROSECONDS_PER_MILLISECOND;
+    _self->currentFrame = (_self->jumpTarget * _self->riffData.sampleRate) 
+        / MILLISECONDS_PER_SECOND;
     if (_self->currentFrame > _self->lastFrame) {
         _self->currentFrame = _self->lastFrame;
     }
