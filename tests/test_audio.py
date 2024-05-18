@@ -1,9 +1,10 @@
-import pytest
-import tempfile
 import ctypes
 import os
-import time
+import pytest
 import subprocess
+import tempfile
+import time
+
 from itertools import product
 from typing import Dict, List
 
@@ -41,21 +42,14 @@ configurations: List[Dict[str, int]] = [
     in product(sample_rates, number_of_channels, bit_depths, durations)
 ]
 
-@pytest.mark.parametrize("configuration", configurations)
-def test_audio(configuration: Dict[str, int]):
-    print("Testing audio with configuration:", flush=True)
-    for key, value in configuration.items():
-        print(f"{key}: {value}", flush=True)
-    print(flush=True)
 
-    file = tempfile.NamedTemporaryFile(suffix=".wav")
-
+def synth_audio(filename: str, configuration: Dict[str, int]):
     command = [
         "sox", "-n", "-R",
         "-r", str(configuration["sample_rate"]),
         "-b", str(configuration["bit_depth"]),
         "-c", str(configuration["number_of_channels"]),
-        file.name,
+        filename,
         "synth",
         str(configuration["duration"]),
         "whitenoise"
@@ -70,72 +64,151 @@ def test_audio(configuration: Dict[str, int]):
     _, stderr = process.communicate()
     assert process.returncode == 0, f"Failed to generate audio: {stderr}"
 
-    with open(file.name, "rb") as file:
-        buffer = bytearray(file.read())
-    
+
+def bind_libaudio() -> ctypes.CDLL:
+    libaudio = ctypes.CDLL("build/libaudio.so")
+
+    # define the function signatures:
+
+    libaudio.audioInit.argtypes = [ctypes.POINTER(AudioConfiguration)]
+    libaudio.audioInit.restype = ctypes.POINTER(ctypes.c_void_p)
+    libaudio.audioDestroy.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioDestroy.restype = None
+
+    libaudio.audioPlay.argtypes = [
+        ctypes.POINTER(ctypes.c_void_p), 
+        ctypes.POINTER(ctypes.c_void_p)
+    ]
+    libaudio.audioPlay.restype = ctypes.c_bool
+    libaudio.audioPause.argtypes = [
+        ctypes.POINTER(ctypes.c_void_p), 
+        ctypes.POINTER(ctypes.c_void_p)
+    ]
+    libaudio.audioPause.restype = ctypes.c_bool
+    libaudio.audioStop.argtypes = [
+        ctypes.POINTER(ctypes.c_void_p), 
+        ctypes.POINTER(ctypes.c_void_p)
+    ]
+    libaudio.audioStop.restype = None
+    libaudio.audioJump.argtypes = [
+        ctypes.POINTER(ctypes.c_void_p), 
+        ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint64
+    ]
+    libaudio.audioJump.restype = ctypes.c_bool
+
+    libaudio.audioGetIsPlaying.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioGetIsPlaying.restype = ctypes.c_bool
+    libaudio.audioGetIsPaused.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioGetIsPaused.restype = ctypes.c_bool
+    libaudio.audioGetCurrentTime.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioGetCurrentTime.restype = ctypes.c_uint64
+    libaudio.audioGetTotalDuration.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioGetTotalDuration.restype = ctypes.c_uint64
+
+    libaudio.audioGetError.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioGetError.restype = ctypes.POINTER(AudioError)
+    libaudio.audioGetErrorString.argtypes = [ctypes.POINTER(AudioError)]
+    libaudio.audioGetErrorString.restype = ctypes.c_char_p
+
+    return libaudio
+
+
+def create_audio_configuration(buffer: bytearray, file_size: int) -> AudioConfiguration:
     char_array = (ctypes.c_char * len(buffer)).from_buffer(buffer)
     raw_data_ptr = ctypes.cast(ctypes.pointer(char_array), ctypes.c_void_p)
 
-    audioConfiguration = AudioConfiguration(
+    return AudioConfiguration(
         rawData=raw_data_ptr,
-        rawDataSize=os.path.getsize(file.name),
+        rawDataSize=file_size,
         soundDeviceName=str.encode("default"),
         soundDeviceNameSize=7,
         timeResolution=50  # ms
     )
 
-    audio = ctypes.CDLL("build/libaudio.so")
 
-    # define the function signatures
-    audio.audioInit.argtypes = [ctypes.POINTER(AudioConfiguration)]
-    audio.audioInit.restype = ctypes.POINTER(ctypes.c_void_p)
-    audio.audioDestroy.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
-    audio.audioDestroy.restype = None
+@pytest.mark.parametrize("configuration", configurations)
+def test_audio(configuration: Dict[str, int]):
+    print("Testing audio with configuration:", flush=True)
+    for key, value in configuration.items():
+        print(f"{key}: {value}", flush=True)
+    print(flush=True)
 
-    audio.audioPlay.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
-    audio.audioPlay.restype = ctypes.c_bool
-    audio.audioPause.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
-    audio.audioPause.restype = ctypes.c_bool
-    audio.audioStop.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p)]
-    audio.audioStop.restype = None
-    audio.audioJump.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint64]
-    audio.audioJump.restype = ctypes.c_bool
+    file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    
+    synth_audio(file.name, configuration)
+    libaudio = bind_libaudio()
 
-    audio.audioGetError.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
-    audio.audioGetError.restype = ctypes.POINTER(AudioError)
-    audio.audioGetErrorString.argtypes = [ctypes.POINTER(AudioError)]
-    audio.audioGetErrorString.restype = ctypes.c_char_p
+    with open(file.name, "rb") as file:
+        buffer = bytearray(file.read())
+        file_size = os.path.getsize(file.name)
 
-    # initialize the audio object
-    audio_object = audio.audioInit(ctypes.byref(audioConfiguration))
-    assert audio_object is not None, "Failed to initialize audio object"
-    assert (error := audio.audioGetError(audio_object)).contents.level == 0, audio.audioGetErrorString(error).decode("utf-8")
+    audio_configuration = create_audio_configuration(buffer, file_size)
 
-    # play the audio
-    assert audio.audioPlay(audio_object, None), "Failed to play audio"
-    assert (error := audio.audioGetError(audio_object)).contents.level == 0, audio.audioGetErrorString(error).decode("utf-8")
+    # initialize
+    audio_object = libaudio.audioInit(ctypes.byref(audio_configuration))
+    assert audio_object is not None, "Failed to initialize"
+    assert (
+        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
+        libaudio.audioGetErrorString(error).decode("utf-8")
+    )
+
+    # get total duration
+    assert (
+        total_duration := libaudio.audioGetTotalDuration(audio_object)
+    ) == configuration['duration'] * 1000, "Failed to get total duration"
+
+    # get current time
+    assert (
+        current_time := libaudio.audioGetCurrentTime(audio_object)
+    ) == 0, "Failed to get current time"
+
+    # play
+    assert libaudio.audioPlay(audio_object, None), "Failed to play"
+    assert (
+        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
+        libaudio.audioGetErrorString(error).decode("utf-8")
+    )
+
+    # get is playing
+    assert libaudio.audioGetIsPlaying(audio_object), "Failed to get is playing"
 
     time.sleep(configuration['duration'] / 4)
 
-    # pause the audio
-    assert audio.audioPause(audio_object, None), "Failed to pause audio"
-    assert (error := audio.audioGetError(audio_object)).contents.level == 0, audio.audioGetErrorString(error).decode("utf-8")
+    # pause
+    assert libaudio.audioPause(audio_object, None), "Failed to pause"
+    assert (
+        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
+        libaudio.audioGetErrorString(error).decode("utf-8")
+    )
+
+    # get is paused
+    assert libaudio.audioGetIsPaused(audio_object), "Failed to get is paused"
 
     time.sleep(configuration['duration'] / 4)
 
     # jump
-    assert audio.audioJump(audio_object, None, configuration['duration'] * 500), "Failed to jump audio"
-    assert (error := audio.audioGetError(audio_object)).contents.level == 0, audio.audioGetErrorString(error).decode("utf-8")
+    assert libaudio.audioJump(audio_object, None, 0), "Failed to jump"
+    assert (
+        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
+        libaudio.audioGetErrorString(error).decode("utf-8")
+    )
 
     time.sleep(configuration['duration'] / 4)
 
-    assert audio.audioPlay(audio_object, None), "Failed to play audio"
-    assert (error := audio.audioGetError(audio_object)).contents.level == 0, audio.audioGetErrorString(error).decode("utf-8")
+    # resume
+    assert libaudio.audioPlay(audio_object, None), "Failed to resume"
+    assert (
+        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
+        libaudio.audioGetErrorString(error).decode("utf-8")
+    )
 
     time.sleep(configuration['duration'] / 4)
 
-    # stop the audio
-    audio.audioStop(audio_object, None)
+    # stop
+    libaudio.audioStop(audio_object, None)
 
-    # destroy the audio object and free the memory
-    audio.audioDestroy(audio_object)
+    # destroy
+    libaudio.audioDestroy(audio_object)
+
+    if os.path.exists(file.name):
+        os.remove(file.name)
