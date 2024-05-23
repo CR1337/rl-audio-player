@@ -67,7 +67,7 @@ void mainloop(AudioObject *audio) {
 }
 
 void * readFile(FILE *file, size_t fileSize) {
-    void *rawData = malloc(fileSize);
+    void *rawData = calloc(fileSize, sizeof(uint8_t));
     if (rawData == NULL) {
         perror("malloc");
         fclose(file);

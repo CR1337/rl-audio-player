@@ -33,6 +33,14 @@ enum AudioErrorType {
     AUDIO_ERROR_DATA_CHUNK_NOT_FOUND,  /* The data chunk was not found. */
     AUDIO_ERROR_INVALID_DATA_MAGIC_NUMBER,  /* The data magic number is invalid. */
     AUDIO_ERROR_INVALID_DATA_SIZE,  /* The data size is invalid. */
+    AUDIO_ERROR_INVALID_FACT_MAGIC_NUMBER,  /* The fact magic number is invalid. */
+    AUDIO_ERROR_INVALID_FACT_SIZE,  /* The fact size is invalid. */
+    AUDIO_ERROR_INVALID_NON_PCM_EXTENSION_SIZE,  /* The non-PCM extension size is invalid. */
+    AUDIO_ERROR_INVALID_EXTENSIBLE_EXTENSION_SIZE,  /* The extensible extension size is invalid. */
+    AUDIO_ERROR_INVALID_EXTENSIBLE_AUDIO_FORMAT,  /* The extensible audio format is invalid. */
+    AUDIO_ERROR_INVALID_EXTENSIBLE_GUID,  /* The extensible GUID is invalid. */
+    AUDIO_ERROR_INVALID_SAMPLES_PER_CHANNEL,  /* The samples per channel is invalid. */
+    AUDIO_UNSUPPORTED_FORMAT,  /* The format is not supported. */
     // alsa
     AUDIO_ERROR_ALSA_ERROR,  /* An ALSA error occurred. */
     // other
@@ -44,9 +52,9 @@ enum AudioErrorType {
  * @brief This represents the severity level of an audio error.
 */
 enum AudioErrorLevel {
-    AUDIO_ERROR_LEVEL_INFO,  /* Just informational. */
-    AUDIO_ERROR_LEVEL_WARNING,  /* A warning. Everything works fine. */
-    AUDIO_ERROR_LEVEL_ERROR  /* An unrecoverable error. */
+    AUDIO_ERROR_LEVEL_INFO = 0,  /* Just informational. */
+    AUDIO_ERROR_LEVEL_WARNING = 1,  /* A warning. Everything works fine. */
+    AUDIO_ERROR_LEVEL_ERROR = 2  /* An unrecoverable error. */
 };
 
 /**
@@ -149,7 +157,7 @@ void audioStop(AudioObject *self, pthread_barrier_t *barrier);
  * @param barrier An optional barrier to wait on.
  * @param milliseconds The time to jump to in milliseconds.
 */
-void audioJump(
+bool audioJump(
     AudioObject *self, pthread_barrier_t *barrier, uint64_t milliseconds
 );
 
