@@ -8,13 +8,40 @@ It can only play WAV files. It can play, pause and stop them. Also it can jump t
 
 ## Building
 
-Install the dependencies in [apt-depenedencies.txt](https://github.com/CR1337/rl-audio-player/blob/main/apt-dependencies.txt) using `apt`.
+Install the dependencies in [apt-depenedencies.txt](https://github.com/CR1337/rl-audio-player/blob/main/apt-dependencies.txt) using
+```bash
+apt install $(cat apt-dependencies.txt)
+```
 
 Run the Makefile with 
-```
+```bash
 make
 ```
 Multiple files are created in `./build`. `./build/libaudio.so` is the shared library. `./build/main` is a small program to test the libraries capabilites.
+
+## Testing
+To run test programs you need to install the python requirements in [requirements.txt](https://github.com/CR1337/rl-audio-player/blob/main/requirements.txt) and the dependencies in [apt-test-depenedencies.txt](https://github.com/CR1337/rl-audio-player/blob/main/apt-test-dependencies.txt).
+
+First create a virtual environment and activate it
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Then install the dependencies
+```bash
+pip install -r requirements.txt
+```
+
+And the apt dependencies
+```bash
+apt install $(cat apt-test-dependencies.txt)
+```
+
+You can run the tests with
+```bash
+pytest
+```
 
 ## Usage
 
@@ -112,7 +139,7 @@ uint32_t ms = audioGetCurrentTime(audio);
 float currentTimeSeconds = currentTime / 1000.0f;
 printf("Current time: %.2f seconds\n", currentTimeSeconds);
 
-// After executing one of these commands you might get a warning if you did something wrong. E.g. you might have jumped beyond the end of the audio data. The program is able to self recover from a warning. Everytime you call an audio* function (except audioGetErrorString) the error gets resets.
+// After executing one of these commands you might get a warning if you did something wrong. E.g. you might have jumped beyond the end of the audio data. The program is able to self recover from a warning. Everytime you call an audio* function (except for audioGetErrorString and audioGetError) the error gets resets.
 audioJump(audio, NULL, 42000000);
 error = audioGetError(audio);
 if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
