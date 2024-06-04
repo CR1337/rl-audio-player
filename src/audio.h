@@ -43,6 +43,7 @@ enum AudioErrorType {
     AUDIO_UNSUPPORTED_FORMAT,  /* The format is not supported. */
     // alsa
     AUDIO_ERROR_ALSA_ERROR,  /* An ALSA error occurred. */
+    AUDIO_ERROR_MIXER_ELEMENT_NOT_FOUND,  /* The mixer element was not found. */
     // other
     AUDIO_ERROR_MEMORY_ALLOCATION_FAILED,  /* Memory allocation failed. */
     AUDIO_UNSUPPORTED_BITS_PER_SAMPLE  /* The bits per sample are not supported. */
@@ -187,6 +188,22 @@ uint64_t audioGetCurrentTime(AudioObject *self);
  * @param self The audio object.
 */
 uint64_t audioGetTotalDuration(AudioObject *self);
+
+/**
+ * Sets the master volume.
+ * 
+ * Values larger than 100 will be clamped to 100.
+ * 
+ * @param self The audio object.
+ * @param volume The volume to set. Must be between 0 and 100.
+*/
+bool audioSetVolume(AudioObject *self, uint8_t volume);
+/**
+ * Returns the master volume between 0 and 100.
+ * 
+ * @param self The audio object.
+*/
+uint8_t audioGetVolume(AudioObject *self);
 
 /**
  * Returns the last error that occurred.

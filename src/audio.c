@@ -63,6 +63,8 @@ const static enum snd_pcm_chmap_position all_channel_positions[CHANNEL_POSITION_
 #define PCM_BLOCK_MODE (0)
 #define PCM_SEARCH_DIRECTION_NEAR (0)
 
+#define MAX_VOLUME (100)
+
 #define DEFAULT_SOUND_DEVICE_NAME ("default")
 
 #define MICROSECONDS_PER_MILLISECOND (1000)
@@ -657,8 +659,8 @@ bool _setChannelMap(_AudioObject *audioObject) {
             }
         }
     }
-    free(channelMap);
     int error = snd_pcm_set_chmap(audioObject->pcmHandle, channelMap);
+    free(channelMap);
     // ENXIO means that the device does not support channel mapping.
     // We don't want to fail in this case.
     if (error && error != -ENXIO) {  
@@ -1032,6 +1034,108 @@ uint64_t audioGetTotalDuration(AudioObject *self) {
     return _self->riffData.audioLength; 
 }
 
+bool _getMixerMasterElement(
+    _AudioObject *_self, 
+    snd_mixer_t **mixerHandle, snd_mixer_elem_t **masterElement
+) {
+    // Open mixer
+    if ((_self->error->alsaErrorNumber = snd_mixer_open(mixerHandle, 0)) < 0) {
+        _self->error->type = AUDIO_ERROR_ALSA_ERROR;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+    if (
+        (_self->error->alsaErrorNumber = snd_mixer_attach(
+            *mixerHandle, _self->soundDeviceName
+    )) < 0) {
+        snd_mixer_close(*mixerHandle);
+        _self->error->type = AUDIO_ERROR_ALSA_ERROR;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+    if ((_self->error->alsaErrorNumber = snd_mixer_selem_register(
+        *mixerHandle, NULL, NULL
+    )) < 0) {
+        snd_mixer_close(*mixerHandle);
+        _self->error->type = AUDIO_ERROR_ALSA_ERROR;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+    if ((_self->error->alsaErrorNumber = snd_mixer_load(*mixerHandle)) < 0) {
+        snd_mixer_close(*mixerHandle);
+        _self->error->type = AUDIO_ERROR_ALSA_ERROR;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+
+    // Open the master element
+    snd_mixer_selem_id_t *elementId;
+    snd_mixer_selem_id_alloca(&elementId);
+    snd_mixer_selem_id_set_index(elementId, 0);
+    snd_mixer_selem_id_set_name(elementId, "Master");
+    if ((*masterElement = snd_mixer_find_selem(*mixerHandle, elementId)) == NULL) {
+        snd_mixer_close(*mixerHandle);
+        _self->error->type = AUDIO_ERROR_MIXER_ELEMENT_NOT_FOUND;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+
+    return true;
+}
+
+bool audioSetVolume(AudioObject *self, uint8_t volume) {
+    _AudioObject *_self = (_AudioObject*)self;
+
+    if (volume > MAX_VOLUME) volume = MAX_VOLUME;
+
+    snd_mixer_t *mixerHandle;
+    snd_mixer_elem_t *masterElement;
+    if (!_getMixerMasterElement(_self, &mixerHandle, &masterElement)) {
+        return false;
+    }
+
+    // Set the volume
+    long minVolume, maxVolume;
+    snd_mixer_selem_get_playback_volume_range(masterElement, &minVolume, &maxVolume);
+    if ((_self->error->alsaErrorNumber = snd_mixer_selem_set_playback_volume_all(
+        masterElement, (volume * maxVolume) / MAX_VOLUME
+    )) < 0) {
+        snd_mixer_close(mixerHandle);
+        _self->error->type = AUDIO_ERROR_ALSA_ERROR;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return false;
+    }
+
+    snd_mixer_close(mixerHandle);
+
+    return true;
+}
+
+uint8_t audioGetVolume(AudioObject *self) {
+    _AudioObject *_self = (_AudioObject*)self;
+
+    snd_mixer_t *mixerHandle;
+    snd_mixer_elem_t *masterElement;
+    if (!_getMixerMasterElement(_self, &mixerHandle, &masterElement)) {
+        return 0;
+    }
+
+    // Get the volume
+    long minVolume, maxVolume, volume;
+    snd_mixer_selem_get_playback_volume_range(masterElement, &minVolume, &maxVolume);  
+    if ((_self->error->alsaErrorNumber = snd_mixer_selem_get_playback_volume(
+        masterElement, SND_MIXER_SCHN_MONO, &volume
+    )) < 0) {
+        snd_mixer_close(mixerHandle);
+        _self->error->type = AUDIO_ERROR_ALSA_ERROR;
+        _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
+        return 0;
+    }
+
+    snd_mixer_close(mixerHandle);
+    return (uint8_t)(volume * MAX_VOLUME / maxVolume);
+}
+
 AudioError * audioGetError(AudioObject *self) {
     _AudioObject *_self = (_AudioObject*)self;
     return _self->error;
@@ -1118,6 +1222,9 @@ const char * audioGetErrorString(AudioError *error) {
         // alsa
         case AUDIO_ERROR_ALSA_ERROR:
             return snd_strerror(error->alsaErrorNumber);
+
+        case AUDIO_ERROR_MIXER_ELEMENT_NOT_FOUND:
+            return "Mixer element not found";
 
         // other
         case AUDIO_ERROR_MEMORY_ALLOCATION_FAILED:

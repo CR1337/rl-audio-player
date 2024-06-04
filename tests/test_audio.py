@@ -105,6 +105,13 @@ def bind_libaudio() -> ctypes.CDLL:
     libaudio.audioGetTotalDuration.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
     libaudio.audioGetTotalDuration.restype = ctypes.c_uint64
 
+    libaudio.audioSetVolume.argtypes = [
+        ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint8
+    ]
+    libaudio.audioSetVolume.restype = ctypes.c_bool
+    libaudio.audioGetVolume.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+    libaudio.audioGetVolume.restype = ctypes.c_uint8
+
     libaudio.audioGetError.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
     libaudio.audioGetError.restype = ctypes.POINTER(AudioError)
     libaudio.audioGetErrorString.argtypes = [ctypes.POINTER(AudioError)]
@@ -126,7 +133,10 @@ def create_audio_configuration(buffer: bytearray, file_size: int) -> AudioConfig
     )
 
 
-@pytest.mark.parametrize("configuration", configurations)
+@pytest.mark.parametrize(
+    "configuration", configurations,
+    ids=[f"{config['sample_rate']//1000}kHz_{config['number_of_channels']}ch_{config['bit_depth']}bit_{config['duration']}s" for config in configurations]
+)
 def test_audio(configuration: Dict[str, int]):
     print("Testing audio with configuration:", flush=True)
     for key, value in configuration.items():
@@ -147,12 +157,10 @@ def test_audio(configuration: Dict[str, int]):
     # initialize
     audio_object = libaudio.audioInit(ctypes.byref(audio_configuration))
     assert audio_object is not None, "Failed to initialize"
-    assert (
-        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
-        libaudio.audioGetErrorString(error).decode("utf-8")
-    )
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while initialize:{libaudio.audioGetErrorString(error).decode('utf-8')}"
 
     # get total duration
+    print(libaudio.audioGetTotalDuration(audio_object), flush=True)
     assert (
         total_duration := libaudio.audioGetTotalDuration(audio_object)
     ) == configuration['duration'] * 1000, "Failed to get total duration"
@@ -164,10 +172,7 @@ def test_audio(configuration: Dict[str, int]):
 
     # play
     assert libaudio.audioPlay(audio_object, None), "Failed to play"
-    assert (
-        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
-        libaudio.audioGetErrorString(error).decode("utf-8")
-    )
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while play:{libaudio.audioGetErrorString(error).decode('utf-8')}"
 
     # get is playing
     assert libaudio.audioGetIsPlaying(audio_object), "Failed to get is playing"
@@ -176,33 +181,43 @@ def test_audio(configuration: Dict[str, int]):
 
     # pause
     assert libaudio.audioPause(audio_object, None), "Failed to pause"
-    assert (
-        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
-        libaudio.audioGetErrorString(error).decode("utf-8")
-    )
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while pause:{libaudio.audioGetErrorString(error).decode('utf-8')}"
 
     # get is paused
     assert libaudio.audioGetIsPaused(audio_object), "Failed to get is paused"
 
     time.sleep(configuration['duration'] / 4)
 
+    # get volume
+    assert (
+        original_volume := libaudio.audioGetVolume(audio_object)
+    ) in range(101), "Failed to get volume"
+
+    # set volume
+    assert libaudio.audioSetVolume(audio_object, 0), "Failed to set volume"
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while set volume:{libaudio.audioGetErrorString(error).decode('utf-8')}"
+    
+
+    # get volume
+    assert (
+        libaudio.audioGetVolume(audio_object)
+    ) in (-1, 0, 1), "Failed to get volume 0"
+
     # jump
     assert libaudio.audioJump(audio_object, None, 0), "Failed to jump"
-    assert (
-        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
-        libaudio.audioGetErrorString(error).decode("utf-8")
-    )
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while jump:{libaudio.audioGetErrorString(error).decode('utf-8')}"
 
     time.sleep(configuration['duration'] / 4)
 
     # resume
     assert libaudio.audioPlay(audio_object, None), "Failed to resume"
-    assert (
-        (error := libaudio.audioGetError(audio_object)).contents.level == 0, 
-        libaudio.audioGetErrorString(error).decode("utf-8")
-    )
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while resume:{libaudio.audioGetErrorString(error).decode('utf-8')}"
 
     time.sleep(configuration['duration'] / 4)
+
+    # reset volume 
+    assert libaudio.audioSetVolume(audio_object, original_volume), "Failed to reset volume"
+    assert (error := libaudio.audioGetError(audio_object)).contents.level == 0, f"ALSA ERROR while reset volume:{libaudio.audioGetErrorString(error).decode('utf-8')}"
 
     # stop
     libaudio.audioStop(audio_object, None)
