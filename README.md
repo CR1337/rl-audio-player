@@ -119,6 +119,9 @@ uint32_t totalDuration = audioGetTotalDuration(audio);
 float totalDurationSeconds = totalDuration / 1000.0f;
 printf("Total duration: %.2f seconds\n", totalDurationSeconds);
 
+// Set the global volume:
+audioSetVolume(audio, 42);
+
 // You can play, pause, resume and stop the audio. Instead of NULL you can also pass a pthread_barrier_t in case you want to synchronize the audio thread with other threads.
 audioPlay(audio, NULL);
 /* Wait some time */
