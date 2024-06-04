@@ -659,8 +659,8 @@ bool _setChannelMap(_AudioObject *audioObject) {
             }
         }
     }
-    free(channelMap);
     int error = snd_pcm_set_chmap(audioObject->pcmHandle, channelMap);
+    free(channelMap);
     // ENXIO means that the device does not support channel mapping.
     // We don't want to fail in this case.
     if (error && error != -ENXIO) {  
