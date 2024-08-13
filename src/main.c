@@ -27,7 +27,6 @@ void mainloop(AudioObject audio) {
     audioPlay(audio, &barrier);
     AudioError *error = audioGetError(audio);
     printf("Playing\nEnter 'q' to quit\n");
-    printf("Playing\nEnter 'q' to quit\n");
     if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
         const char *errorString = audioGetErrorString(error);
         fprintf(stderr, "Warning: %s\n", errorString);
@@ -46,7 +45,6 @@ void mainloop(AudioObject audio) {
 
             case 'r':
                 audioPlay(audio, &barrier);
-                printf("Play/Resumed\n");
                 printf("Play/Resumed\n");
                 break;
 
