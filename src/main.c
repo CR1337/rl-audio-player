@@ -7,13 +7,26 @@
 
 #include "audio.h"
 
-void mainloop(AudioObject *audio) {
+void printCommands() {
+    printf("h\t\tShow help.\n");
+    printf("p\t\tPause playback.\n");
+    printf("r\t\tResume/start playback.\n");
+    printf("s\t\tStop playback.\n");
+    printf("j T\t\tJump to T milliseconds.\n");
+    printf("t\t\tShow current milliseconds.\n");
+    printf("v V\t\tSet volume to V [0..100].\n");
+    printf("?\t\tShow current volume [0..100].\n");
+    printf("q\t\tQuit program.\n");
+    putchar('\n');
+}
+
+void mainloop(AudioObject audio) {
     pthread_barrier_t barrier;
     pthread_barrier_init(&barrier, NULL, 1);
 
     audioPlay(audio, &barrier);
     AudioError *error = audioGetError(audio);
-    printf("Playing\n");
+    printf("Playing\nEnter 'q' to quit\n");
     if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
         const char *errorString = audioGetErrorString(error);
         fprintf(stderr, "Warning: %s\n", errorString);
@@ -21,6 +34,10 @@ void mainloop(AudioObject *audio) {
 
     while (true) {
         switch (getchar()) {
+            case 'h':
+                printCommands();
+                break;
+                
             case 'p':
                 audioPause(audio, &barrier);
                 printf("Paused\n");
@@ -28,7 +45,7 @@ void mainloop(AudioObject *audio) {
 
             case 'r':
                 audioPlay(audio, &barrier);
-                printf("Resumed\n");
+                printf("Play/Resumed\n");
                 break;
 
             case 's':
@@ -43,13 +60,28 @@ void mainloop(AudioObject *audio) {
                     break;
                 }
                 audioJump(audio, &barrier, milliseconds);
-                printf("Jumped to %u milliseconds\n", milliseconds);
+                printf("Jumped to %lu milliseconds\n", milliseconds);
                 break;
 
             case 't':
                 uint64_t currentTime = audioGetCurrentTime(audio);
                 float currentTimeSeconds = currentTime / 1000.0f;
                 printf("Current time: %.2f seconds\n", currentTimeSeconds);
+                break;
+
+            case 'v':
+                uint8_t volume;
+                if (scanf("%hhu", &volume) == EOF) {
+                    fprintf(stderr, "Could not read volume.");
+                    break;
+                }
+                audioSetVolume(audio, volume);
+                printf("Set volume to %u\n", volume);
+                break;
+
+            case '?':
+                uint8_t currentVolume = audioGetVolume(audio);
+                printf("Current volume: %u\n", currentVolume);
                 break;
 
             case 'q':
@@ -110,18 +142,13 @@ void printHelp(char *programName) {
     printf("After program start type the following commands to control palyback:\n");
     putchar('\n');
 
-    printf("p\t\tPause playback.\n");
-    printf("r\t\tResume/start playback.\n");
-    printf("s\t\tStop playback.\n");
-    printf("j T\t\tJump to T milliseconds.\n");
-    printf("t\t\tShow current milliseconds.\n");
-    printf("q\t\tQuit program.\n");
+    printCommands();
 }
 
 void parseArguments(int argc, char *argv[], char **filename, bool *map, bool *showHelp) {
     switch (argc) {
         case 2:
-            if (!strncmp(argv[1], "-m", strnlen(argv[1], 3))) {
+            if (!strncmp(argv[1], "-h", strnlen(argv[1], 3))) {
                 *showHelp = true;
                 return;
             } else {

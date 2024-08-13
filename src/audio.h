@@ -43,6 +43,7 @@ enum AudioErrorType {
     AUDIO_UNSUPPORTED_FORMAT,  /* The format is not supported. */
     // alsa
     AUDIO_ERROR_ALSA_ERROR,  /* An ALSA error occurred. */
+    AUDIO_ERROR_MIXER_ELEMENT_NOT_FOUND,  /* The mixer element was not found. */
     // other
     AUDIO_ERROR_MEMORY_ALLOCATION_FAILED,  /* Memory allocation failed. */
     AUDIO_UNSUPPORTED_BITS_PER_SAMPLE  /* The bits per sample are not supported. */
@@ -103,7 +104,7 @@ AudioObject * audioInit(AudioConfiguration *configuration);
  * 
  * @param self The audio object.
 */
-void audioDestroy(AudioObject *self);
+void audioDestroy(AudioObject self);
 
 /**
  * Plays the audio.
@@ -117,7 +118,7 @@ void audioDestroy(AudioObject *self);
  * @param self The audio object.
  * @param barrier An optional barrier to wait on.
 */
-bool audioPlay(AudioObject *self, pthread_barrier_t *barrier);
+bool audioPlay(AudioObject self, pthread_barrier_t *barrier);
 /**
  * Pauses the audio.
  * 
@@ -130,7 +131,7 @@ bool audioPlay(AudioObject *self, pthread_barrier_t *barrier);
  * @param self The audio object.
  * @param barrier An optional barrier to wait on.
 */
-bool audioPause(AudioObject *self, pthread_barrier_t *barrier);
+bool audioPause(AudioObject self, pthread_barrier_t *barrier);
 /**
  * Stops the audio.
  * 
@@ -142,7 +143,7 @@ bool audioPause(AudioObject *self, pthread_barrier_t *barrier);
  * @param self The audio object.
  * @param barrier An optional barrier to wait on.
 */
-void audioStop(AudioObject *self, pthread_barrier_t *barrier);
+void audioStop(AudioObject self, pthread_barrier_t *barrier);
 /**
  * Jumps to the given time in milliseconds.
  * 
@@ -158,7 +159,7 @@ void audioStop(AudioObject *self, pthread_barrier_t *barrier);
  * @param milliseconds The time to jump to in milliseconds.
 */
 bool audioJump(
-    AudioObject *self, pthread_barrier_t *barrier, uint64_t milliseconds
+    AudioObject self, pthread_barrier_t *barrier, uint32_t milliseconds
 );
 
 /**
@@ -167,33 +168,49 @@ bool audioJump(
  * @param self The audio object.
  * @return Whether the audio is playing.
 */
-bool audioGetIsPlaying(AudioObject *self);
+bool audioGetIsPlaying(AudioObject self);
 /**
  * Returns whether the audio is paused.
  * 
  * @param self The audio object.
  * @return Whether the audio is paused.
 */
-bool audioGetIsPaused(AudioObject *self);
+bool audioGetIsPaused(AudioObject self);
 /**
  * Returns the current time of the audio in milliseconds.
  * 
  * @param self The audio object.
 */
-uint64_t audioGetCurrentTime(AudioObject *self);
+uint32_t audioGetCurrentTime(AudioObject self);
 /**
  * Returns the total duration of the audio in milliseconds.
  * 
  * @param self The audio object.
 */
-uint64_t audioGetTotalDuration(AudioObject *self);
+uint32_t audioGetTotalDuration(AudioObject self);
+
+/**
+ * Sets the master volume.
+ * 
+ * Values larger than 100 will be clamped to 100.
+ * 
+ * @param self The audio object.
+ * @param volume The volume to set. Must be between 0 and 100.
+*/
+bool audioSetVolume(AudioObject self, uint8_t volume);
+/**
+ * Returns the master volume between 0 and 100.
+ * 
+ * @param self The audio object.
+*/
+uint8_t audioGetVolume(AudioObject self);
 
 /**
  * Returns the last error that occurred.
  * 
  * @param self The audio object.
 */
-AudioError * audioGetError(AudioObject *self);
+AudioError * audioGetError(AudioObject self);
 /**
  * Returns a string representation of the given error.
  * 
