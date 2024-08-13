@@ -27,6 +27,7 @@ void mainloop(AudioObject audio) {
     audioPlay(audio, &barrier);
     AudioError *error = audioGetError(audio);
     printf("Playing\nEnter 'q' to quit\n");
+    printf("Playing\nEnter 'q' to quit\n");
     if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
         const char *errorString = audioGetErrorString(error);
         fprintf(stderr, "Warning: %s\n", errorString);
@@ -37,7 +38,7 @@ void mainloop(AudioObject audio) {
             case 'h':
                 printCommands();
                 break;
-                
+
             case 'p':
                 audioPause(audio, &barrier);
                 printf("Paused\n");
@@ -45,6 +46,7 @@ void mainloop(AudioObject audio) {
 
             case 'r':
                 audioPlay(audio, &barrier);
+                printf("Play/Resumed\n");
                 printf("Play/Resumed\n");
                 break;
 
@@ -60,7 +62,7 @@ void mainloop(AudioObject audio) {
                     break;
                 }
                 audioJump(audio, &barrier, milliseconds);
-                printf("Jumped to %lu milliseconds\n", milliseconds);
+                printf("Jumped to %lu milliseconds\n", milliseconds);                
                 break;
 
             case 't':
@@ -142,6 +144,7 @@ void printHelp(char *programName) {
     printf("After program start type the following commands to control palyback:\n");
     putchar('\n');
 
+    printCommands();
     printCommands();
 }
 

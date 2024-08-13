@@ -63,14 +63,17 @@ You can get some usage information with
 
 Once the program is running you can control it by typing commands and pressing `Enter`.
 
-|Command|Effect                           |
-|-------|---------------------------------|
-|p      |Pause the playback.              |
-|r      |Resume/start the playback.       |
-|s      |Stop the playback.               |
-|j T    |Jump to T milliseconds.,         |
-|t      |Display the current milliseconds.|
-|q      |Quit the program.                |
+|Command|Effect                              |
+|-------|------------------------------------|
+|h      |Display help.                       |
+|p      |Pause the playback.                 |
+|r      |Resume/start the playback.          |
+|s      |Stop the playback.                  |
+|j T    |Jump to T milliseconds.,            |
+|t      |Display the current milliseconds.   |
+|v V    |Set the volume to V [0..100].       |
+|?      |Display the current volume [0..100].|
+|q      |Quit the program.                   |
 
 ### Library
 
@@ -115,6 +118,9 @@ if (error->level == AUDIO_ERROR_LEVEL_ERROR) {
 uint32_t totalDuration = audioGetTotalDuration(audio);
 float totalDurationSeconds = totalDuration / 1000.0f;
 printf("Total duration: %.2f seconds\n", totalDurationSeconds);
+
+// Set the global volume:
+audioSetVolume(audio, 42);
 
 // You can play, pause, resume and stop the audio. Instead of NULL you can also pass a pthread_barrier_t in case you want to synchronize the audio thread with other threads.
 audioPlay(audio, NULL);

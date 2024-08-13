@@ -206,6 +206,22 @@ bool audioSetVolume(AudioObject self, uint8_t volume);
 uint8_t audioGetVolume(AudioObject self);
 
 /**
+ * Sets the master volume.
+ * 
+ * Values larger than 100 will be clamped to 100.
+ * 
+ * @param self The audio object.
+ * @param volume The volume to set. Must be between 0 and 100.
+*/
+bool audioSetVolume(AudioObject *self, uint8_t volume);
+/**
+ * Returns the master volume between 0 and 100.
+ * 
+ * @param self The audio object.
+*/
+uint8_t audioGetVolume(AudioObject *self);
+
+/**
  * Returns the last error that occurred.
  * 
  * @param self The audio object.
