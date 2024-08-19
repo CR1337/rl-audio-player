@@ -392,7 +392,6 @@ bool _readExtensibleFmtChunkExtension(
             _self->error->type = AUDIO_ERROR_INVALID_EXTENSIBLE_AUDIO_FORMAT;
             _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return false;
-            break;
     }
     // There is a fixed guid in the extension
     if (memcmp(
@@ -444,7 +443,6 @@ bool _readFmtChunk(_AudioObject *_self, AudioFmtChunk *fmtChunk) {
             _self->error->type = AUDIO_ERROR_NO_PCM_FORMAT;
             _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return false;
-            break;
     }
     if (fmtChunk->fmtSize != expectedFmtSize) {
         _self->error->type = AUDIO_ERROR_INVALID_FMT_SIZE;
@@ -790,7 +788,6 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
             audioObject->error->type = AUDIO_UNSUPPORTED_FORMAT;
             audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return (AudioObject*)audioObject;
-            break;
     }
 
     if ((audioObject->error->alsaErrorNumber = snd_pcm_hw_params_set_format(
