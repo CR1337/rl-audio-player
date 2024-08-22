@@ -27,10 +27,6 @@ void mainloop(AudioObject audio) {
     audioPlay(audio, &barrier);
     AudioError *error = audioGetError(audio);
     printf("Playing\nEnter 'q' to quit\n");
-    if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
-        const char *errorString = audioGetErrorString(error);
-        fprintf(stderr, "Warning: %s\n", errorString);
-    }
 
     while (true) {
         switch (getchar()) {
@@ -86,16 +82,19 @@ void mainloop(AudioObject audio) {
 
             case 'q':
                 printf("Quitting\n");
+                audioDestroy(audio);
+                pthread_barrier_destroy(&barrier);
                 return;
+
+            default:
+                printf("Unrecognized command. Type 'h' for help.\n");
+                break;  
         }
         if (error->level == AUDIO_ERROR_LEVEL_WARNING) {
             const char *errorString = audioGetErrorString(error);
             fprintf(stderr, "Warning: %s\n", errorString);
         }
     }
-
-    audioDestroy(audio);
-    pthread_barrier_destroy(&barrier);
 }
 
 void * readFile(FILE *file, size_t fileSize) {
@@ -202,6 +201,7 @@ int main(int argc, char *argv[]) {
     struct stat fileStats;
     if (fstat(fileDescriptor, &fileStats) == -1) {
         perror("fstat");
+        fclose(file);
         return EXIT_FAILURE;
     }
     size_t fileSize = fileStats.st_size;
