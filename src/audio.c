@@ -583,7 +583,7 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
         + sizeof(AudioDataChunk);
 
     // Compute the length of the entire audio in milliseconds
-    _self->riffData.audioLength = (uint32_t)(_self->riffData.dataSize)
+    _self->riffData.audioLength = _self->riffData.dataSize
         * MILLISECONDS_PER_SECOND 
         / (uint64_t)(_self->riffData.byteRate);
 
@@ -1028,9 +1028,9 @@ bool audioGetIsPaused(AudioObject self) {
 uint32_t audioGetCurrentTime(AudioObject self) {
     _AudioObject *_self = (_AudioObject*)self;
     _resetError(_self);
-    return (uint32_t)(_self->currentFrame)
+    return _self->currentFrame
         * MILLISECONDS_PER_SECOND
-        / (uint32_t)(_self->riffData.sampleRate);
+        / _self->riffData.sampleRate;
 }
 
 uint32_t audioGetTotalDuration(AudioObject self) { 
