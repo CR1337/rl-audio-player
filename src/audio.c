@@ -69,6 +69,7 @@ const static enum snd_pcm_chmap_position all_channel_positions[CHANNEL_POSITION_
 
 #define DEFAULT_SOUND_DEVICE_NAME ("default")
 
+#define NANOSECONDS_PER_MICROSECOND (1000)
 #define MICROSECONDS_PER_MILLISECOND (1000)
 #define MILLISECONDS_PER_SECOND (1000)
 #define BITS_PER_BYTE (8)
@@ -292,7 +293,11 @@ void * _mainloop(void *self) {
         }
 
         // Wait a bit and if paused don't do anything.
-        usleep(_self->timeResolution * MICROSECONDS_PER_MILLISECOND);
+        struct timespec ts = {
+            .tv_sec = 0,
+            .tv_nsec = _self->timeResolution * MICROSECONDS_PER_MILLISECOND * NANOSECONDS_PER_MICROSECOND
+        };
+        nanosleep(&ts, NULL);
         if (_self->isPaused) continue;
 
         // Determine how many frames could be written.
