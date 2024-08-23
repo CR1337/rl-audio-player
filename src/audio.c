@@ -186,9 +186,9 @@ typedef struct {
 } _AudioObject;
 
 void _resetError(_AudioObject *_self) {
-    ((_AudioObject*)_self)->error->type = AUDIO_ERROR_NO_ERROR;
-    ((_AudioObject*)_self)->error->level = AUDIO_ERROR_LEVEL_INFO;
-    ((_AudioObject*)_self)->error->alsaErrorNumber = 0;
+    _self->error->type = AUDIO_ERROR_NO_ERROR;
+    _self->error->level = AUDIO_ERROR_LEVEL_INFO;
+    _self->error->alsaErrorNumber = 0;
 }
 
 void _waitForBarriers(_AudioObject *_self) {
