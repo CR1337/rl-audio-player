@@ -478,8 +478,6 @@ bool _readFmtChunk(_AudioObject *_self, AudioFmtChunk *fmtChunk) {
 
         default:
             assert(false && "This should never happen.");
-
-        // TODO: default
     }
 
     // Read the rest of the fmt chunk and check if all invariants hold true.
