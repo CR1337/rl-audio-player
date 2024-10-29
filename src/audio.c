@@ -186,9 +186,9 @@ typedef struct {
 } _AudioObject;
 
 void _resetError(_AudioObject *_self) {
-    ((_AudioObject*)_self)->error->type = AUDIO_ERROR_NO_ERROR;
-    ((_AudioObject*)_self)->error->level = AUDIO_ERROR_LEVEL_INFO;
-    ((_AudioObject*)_self)->error->alsaErrorNumber = 0;
+    _self->error->type = AUDIO_ERROR_NO_ERROR;
+    _self->error->level = AUDIO_ERROR_LEVEL_INFO;
+    _self->error->alsaErrorNumber = 0;
 }
 
 void _waitForBarriers(_AudioObject *_self) {
@@ -392,7 +392,6 @@ bool _readExtensibleFmtChunkExtension(
             _self->error->type = AUDIO_ERROR_INVALID_EXTENSIBLE_AUDIO_FORMAT;
             _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return false;
-            break;
     }
     // There is a fixed guid in the extension
     if (memcmp(
@@ -444,7 +443,6 @@ bool _readFmtChunk(_AudioObject *_self, AudioFmtChunk *fmtChunk) {
             _self->error->type = AUDIO_ERROR_NO_PCM_FORMAT;
             _self->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return false;
-            break;
     }
     if (fmtChunk->fmtSize != expectedFmtSize) {
         _self->error->type = AUDIO_ERROR_INVALID_FMT_SIZE;
@@ -588,7 +586,7 @@ bool _readRiffFile(_AudioObject *_self, void *rawData, size_t rawDataSize) {
         + sizeof(AudioDataChunk);
 
     // Compute the length of the entire audio in milliseconds
-    _self->riffData.audioLength = (uint32_t)(_self->riffData.dataSize)
+    _self->riffData.audioLength = _self->riffData.dataSize
         * MILLISECONDS_PER_SECOND 
         / (uint64_t)(_self->riffData.byteRate);
 
@@ -798,7 +796,6 @@ AudioObject * audioInit(AudioConfiguration *configuration) {
             audioObject->error->type = AUDIO_UNSUPPORTED_FORMAT;
             audioObject->error->level = AUDIO_ERROR_LEVEL_ERROR;
             return (AudioObject*)audioObject;
-            break;
     }
 
     if ((audioObject->error->alsaErrorNumber = snd_pcm_hw_params_set_format(
@@ -1033,9 +1030,9 @@ bool audioGetIsPaused(AudioObject self) {
 uint32_t audioGetCurrentTime(AudioObject self) {
     _AudioObject *_self = (_AudioObject*)self;
     _resetError(_self);
-    return (uint32_t)(_self->currentFrame)
+    return _self->currentFrame
         * MILLISECONDS_PER_SECOND
-        / (uint32_t)(_self->riffData.sampleRate);
+        / _self->riffData.sampleRate;
 }
 
 uint32_t audioGetTotalDuration(AudioObject self) { 
